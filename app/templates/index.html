@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Context Switcher</title>
+    <script defer src="/static/script.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2rem;
+        }
+
+        label,
+        select,
+        button,
+        textarea {
+            display: block;
+            margin: 0.5rem 0;
+        }
+
+        textarea {
+            width: 300px;
+            height: 3rem;
+        }
+
+        #tabs {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            gap: 1rem;
+            cursor: pointer;
+        }
+
+        #tabs li {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ccc;
+        }
+
+        #tabs li.active {
+            background: #eee;
+        }
+
+        .tab-pane {
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <ul id="tabs">
+        <li data-tab="switcher" class="active">Switcher</li>
+        <li data-tab="metrics">Metrics</li>
+    </ul>
+    <div id="tab-content">
+        <div id="switcher" class="tab-pane">
+            <h1>Timewarrior Context Switcher</h1>
+
+            <div>
+                <strong>Now working on:</strong>
+                <pre id="current-task">—</pre>
+            </div>
+
+            <form id="switch-form">
+                <label for="ticket-select">Switch to ticket:</label>
+                <select id="ticket-select">
+                    <option value="" disabled selected>Loading…</option>
+                </select>
+
+                <label for="note">Note (optional):</label>
+                <textarea id="note" placeholder="Why the switch?"></textarea>
+
+                <label for="category">Category (optional):</label>
+                <input type="text" id="category" placeholder="e.g. bug, meeting, deep_work" />
+
+                <label for="is-switch">
+                    <input type="checkbox" id="is-switch" checked />
+                    Count as context switch
+                </label>
+
+                <button type="submit">Switch</button>
+            </form>
+
+            <div id="result"></div>
+
+            <h2>Add a custom task</h2>
+            <label for="new-key">Key:</label>
+            <input id="new-key" placeholder="e.g. BREAK" />
+            <label for="new-name">Name:</label>
+            <input id="new-name" placeholder="e.g. Coffee break" />
+            <button id="add-task">Add Task</button>
+            <div id="add-result"></div>
+
+            <button id="stop-task">Stop Current Task</button>
+        </div> <!-- end switcher -->
+        <div id="metrics" class="tab-pane" style="display:none">
+            <h2>Weekly Context-Switch Grid</h2>
+            <div id="grid" style="display:grid; grid-template-columns: repeat(7, 1fr); gap:1rem"></div>
+            <h2>Switch Log</h2>
+            <ul id="switch-log"></ul>
+        </div>
+    </div> <!-- end tab-content -->
+</body>
+
+</html>
