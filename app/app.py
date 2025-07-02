@@ -6,7 +6,7 @@ from app.models import CustomTask
 from app.timew import get_current_task, get_current_summary, switch_task, stop_task
 from app.jira_client import get_assigned_tickets
 from datetime import date, timedelta
-from sqlalchemy import func, cast, Date
+from sqlalchemy import func
 from app.models import Switch  # ensure Switch is imported for queries
 
 # Initialize database (creates tables if needed)
@@ -148,7 +148,7 @@ def get_switch_counts():
     db = SessionLocal()
     rows = (
         db.query(
-            cast(Switch.timestamp, Date).label("day"),
+            func.date(Switch.timestamp).label("day"),
             func.count(Switch.id).label("count")
         )
         .filter(Switch.timestamp >= week_start)
@@ -159,7 +159,7 @@ def get_switch_counts():
     )
     db.close()
 
-    counts = { r.day.isoformat(): r.count for r in rows }
+    counts = { r.day: r.count for r in rows }
     out = []
     for i in range(7):
         d = week_start + timedelta(days=i)

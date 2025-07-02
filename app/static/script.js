@@ -7,12 +7,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultDiv = document.getElementById("result");
     const form = document.getElementById("switch-form");
 
+    // Helper to fetch and display the current Timewarrior summary
+    function fetchCurrent() {
+        fetch("/current")
+            .then(r => r.json())
+            .then(data => {
+                currentEl.textContent = data.summary || "idle";
+            });
+    }
+
     // Fetch and display current task
-    fetch("/current")
-        .then(r => r.json())
-        .then(data => {
-            currentEl.textContent = data.summary || "idle";
-        });
+    fetchCurrent();
 
     // Load tasks (Jira + custom)
     function loadTasks() {
@@ -49,11 +54,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (json.error) {
                     resultDiv.textContent = "Error: " + json.error;
                 } else {
-                    currentEl.textContent = json.to;
+                    // currentEl.textContent = json.to;
                     resultDiv.textContent = `Switched from ${json.from || "idle"} to ${json.to}`;
                     // clear inputs
                     noteInput.value = "";
                     categoryIn.value = "";
+                    fetchCurrent();
                 }
             });
     });
@@ -87,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
         fetch("/stop", { method: "POST" })
             .then(r => r.json())
             .then(json => {
-                currentEl.textContent = "idle";
+                fetchCurrent();
                 resultDiv.textContent = `Stopped task ${json.from || "idle"}`;
             });
     });
@@ -129,10 +135,10 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(items => {
                 items.forEach(it => {
                     const li = document.createElement("li");
-                    li.textContent = `${it.timestamp.slice(11, 19)} — ${it.from || "idle"} → ${it.to}`
-                        + (it.note ? ` (${it.note})` : "");
+                    li.textContent = `${it.timestamp.slice(11, 19)} - ${it.from} — ${it.to}` + (it.note ? ` (${it.note})` : "");
                     logEl.append(li);
                 });
             });
     }
 });
+

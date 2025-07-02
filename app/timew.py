@@ -1,24 +1,38 @@
 # app/timew.py
 
 import subprocess
+import re
 from config import Config
 
 TIMEW_BIN = Config.TIMEWARRIOR_BIN
 
 def get_current_task():
     """
-    Returns the currently running Timewarrior context (or None if idle).
+    Returns the tag of the most recent Timewarrior interval.
+    Uses 'timew summary :id @1' to fetch the latest entry.
+    Parses the first data row for the tag immediately following '@1'.
     """
     try:
-        # 'timew get dom.active' prints the active tag or an empty string if none.
         output = subprocess.check_output(
-            [TIMEW_BIN, 'get', 'dom.active'],
+            [TIMEW_BIN, 'summary', ':id', '@1'],
             text=True,
             stderr=subprocess.DEVNULL
-        ).strip()
-        return output or None
+        )
     except subprocess.CalledProcessError:
         return None
+
+    # Each data row starts with a week number and date; skip header and separator lines
+    for line in output.splitlines():
+        # Look for the line containing '@1'
+        if '@1' in line and not line.strip().startswith(('Wk', '---')):
+            parts = line.split()
+            try:
+                idx = parts.index('@1')
+                # Tag is the token immediately after '@1'
+                return parts[idx + 1]
+            except (ValueError, IndexError):
+                continue
+    return None
 
 
 def switch_task(to_task):
