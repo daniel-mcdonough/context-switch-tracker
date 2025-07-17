@@ -138,33 +138,67 @@ def add_custom_task():
 @app.route("/metrics/counts", methods=["GET"])
 def get_switch_counts():
     """
-    Returns a list of { date: 'YYYY-MM-DD', count: N } for each day
-    in the current week (Mon→Sun).
+    Returns a list of { date: 'YYYY-MM-DD', count: N } for either
+    the current week (Mon→Sun) or the current month, based on the
+    'view' query parameter ('week' or 'month').
     """
+    view = request.args.get("view", "week")
     today = date.today()
-    week_start = today - timedelta(days=today.weekday())
-    week_end = week_start + timedelta(days=6)
 
     db = SessionLocal()
-    rows = (
-        db.query(
-            func.date(Switch.timestamp).label("day"),
-            func.count(Switch.id).label("count")
-        )
-        .filter(Switch.timestamp >= week_start)
-        .filter(Switch.is_switch == True)
-        .filter(Switch.timestamp < week_end + timedelta(days=1))
-        .group_by("day")
-        .all()
-    )
-    db.close()
-
-    counts = { r.day: r.count for r in rows }
     out = []
-    for i in range(7):
-        d = week_start + timedelta(days=i)
-        out.append({ "date": d.isoformat(), "count": counts.get(d.isoformat(), 0) })
 
+    if view == "month":
+        # First day of current month
+        start = today.replace(day=1)
+        # Compute first day of next month
+        if start.month == 12:
+            next_month = date(start.year + 1, 1, 1)
+        else:
+            next_month = date(start.year, start.month + 1, 1)
+        # Last day of current month
+        last_day = next_month - timedelta(days=1)
+
+        rows = (
+            db.query(
+                func.date(Switch.timestamp).label("day"),
+                func.count(Switch.id).label("count")
+            )
+            .filter(Switch.timestamp >= start)
+            .filter(Switch.timestamp < next_month)
+            .filter(Switch.is_switch == True)
+            .group_by("day")
+            .all()
+        )
+        counts = { r.day: r.count for r in rows }
+        # Build output for each day of month
+        day = start
+        while day <= last_day:
+            iso = day.isoformat()
+            out.append({ "date": iso, "count": counts.get(iso, 0) })
+            day += timedelta(days=1)
+    else:
+        # Week view: current week Monday→Sunday
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        rows = (
+            db.query(
+                func.date(Switch.timestamp).label("day"),
+                func.count(Switch.id).label("count")
+            )
+            .filter(Switch.timestamp >= week_start)
+            .filter(Switch.timestamp < week_end + timedelta(days=1))
+            .filter(Switch.is_switch == True)
+            .group_by("day")
+            .all()
+        )
+        counts = { r.day: r.count for r in rows }
+        for i in range(7):
+            d = week_start + timedelta(days=i)
+            iso = d.isoformat()
+            out.append({ "date": iso, "count": counts.get(iso, 0) })
+
+    db.close()
     return jsonify(out), 200
 
 @app.route("/metrics/switches", methods=["GET"])

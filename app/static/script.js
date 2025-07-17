@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+    let monthView = false;
     const currentEl = document.getElementById("current-task");
     const ticketSel = document.getElementById("ticket-select");
     const noteInput = document.getElementById("note");
@@ -109,6 +110,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
+    // Month toggle button for metrics
+    const monthBtn = document.getElementById("month-view-btn");
+    monthBtn.addEventListener("click", () => {
+        monthView = !monthView;
+        loadMetrics();
+    });
+
     // METRICS: fetch & render
     function loadMetrics() {
         const gridEl = document.getElementById("grid");
@@ -117,7 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
         logEl.innerHTML = "";
 
         // Daily counts
-        fetch("/metrics/counts")
+        fetch(`/metrics/counts?view=${monthView ? "month" : "week"}`)
             .then(r => r.json())
             .then(days => {
                 days.forEach(d => {
