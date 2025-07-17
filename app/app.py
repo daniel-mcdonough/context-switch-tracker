@@ -199,4 +199,4 @@ def get_weekly_switches():
 
 if __name__ == "__main__":
     # Default host/port; override with FLASK_RUN_HOST/PORT if desired
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="127.0.0.1", port=5000)
