@@ -78,7 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    let monthView = false;
+    let monthView = true; // Default to month view
     const currentEl = document.getElementById("current-task");
     const ticketSel = document.getElementById("ticket-select");
     const noteInput = document.getElementById("note");
@@ -338,12 +338,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Month toggle button for metrics
-    const monthBtn = document.getElementById("month-view-btn");
-    monthBtn.addEventListener("click", () => {
-        monthView = !monthView;
-        loadMetrics();
-    });
+    // Month view is now always enabled (no toggle button)
 
     // Analytics toggle button
     const analyticsBtn = document.getElementById("analytics-view-btn");

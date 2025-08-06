@@ -14,13 +14,13 @@
                 .attr("id", "calendar-grid");
         }
         
-        const margin = { top: 40, right: 20, bottom: 20, left: 30 };
-        const cellSize = 48;
+        const margin = { top: 40, right: 20, bottom: 60, left: 30 };
+        const cellSize = 54;
         const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
         Promise.all([
             fetch(`/metrics/counts?view=${view}`).then(r => r.json()),
-            fetch("/metrics/switches").then(r => r.json())
+            fetch(`/metrics/switches?view=${view}`).then(r => r.json())
         ]).then(([days, switches]) => {
             if (!days || days.length === 0) return;
 

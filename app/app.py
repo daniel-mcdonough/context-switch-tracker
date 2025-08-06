@@ -287,18 +287,32 @@ def get_switch_counts():
     return jsonify(out), 200
 
 @app.route("/metrics/switches", methods=["GET"])
-def get_weekly_switches():
+def get_switches():
     """
-    Return the raw Switch records for the current week (Sunday-Saturday), ordered newest-first.
+    Return the raw Switch records for the specified time period, ordered newest-first.
+    View parameter: 'week' or 'month' (defaults to 'month')
     """
+    view = request.args.get("view", "month")
     today = date.today()
-    days_since_sunday = (today.weekday() + 1) % 7  # Convert Mon=0 to Sun=0
-    week_start = today - timedelta(days=days_since_sunday)
+    
+    if view == "week":
+        # Weekly view (Sunday-Saturday)
+        days_since_sunday = (today.weekday() + 1) % 7  # Convert Mon=0 to Sun=0
+        start_date = today - timedelta(days=days_since_sunday)
+        end_date = start_date + timedelta(days=7)
+    else:
+        # Monthly view (entire current month)
+        start_date = today.replace(day=1)
+        if start_date.month == 12:
+            end_date = date(start_date.year + 1, 1, 1)
+        else:
+            end_date = date(start_date.year, start_date.month + 1, 1)
 
     db = SessionLocal()
     rows = (
         db.query(Switch)
-        .filter(Switch.timestamp >= week_start)
+        .filter(Switch.timestamp >= start_date)
+        .filter(Switch.timestamp < end_date)
         .filter(Switch.is_switch.is_(True))
         .order_by(Switch.timestamp.desc())
         .all()
