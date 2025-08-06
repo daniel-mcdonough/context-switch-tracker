@@ -119,31 +119,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // METRICS: fetch & render
     function loadMetrics() {
-        const gridEl = document.getElementById("grid");
+        const view = monthView ? "month" : "week";
+        // Render the D3 chart
+        loadD3Metrics(view);
+        // Update the raw switch log
         const logEl = document.getElementById("switch-log");
-        gridEl.innerHTML = "";
         logEl.innerHTML = "";
-
-        // Daily counts
-        fetch(`/metrics/counts?view=${monthView ? "month" : "week"}`)
-            .then(r => r.json())
-            .then(days => {
-                days.forEach(d => {
-                    const box = document.createElement("div");
-                    box.innerHTML = `<strong>${d.date.slice(5)}</strong><br>${d.count}`;
-                    box.style.border = "1px solid #ddd";
-                    box.style.padding = "0.5rem";
-                    gridEl.append(box);
-                });
-            });
-
-        // Raw switches
         fetch("/metrics/switches")
             .then(r => r.json())
             .then(items => {
                 items.forEach(it => {
                     const li = document.createElement("li");
-                    li.textContent = `${it.timestamp.slice(11, 19)} - ${it.from} — ${it.to}` + (it.note ? ` (${it.note})` : "");
+                    li.textContent = `${it.timestamp.slice(11, 19)} - ${it.from} — ${it.to}`
+                        + (it.note ? ` (${it.note})` : "");
                     logEl.append(li);
                 });
             });

@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8" />
     <title>Context Switcher</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script defer src="/static/d3-metrics.js"></script>
+    <link rel="stylesheet" href="/static/d3-metrics.css">
     <script defer src="/static/script.js"></script>
     <style>
         body {
@@ -96,6 +99,7 @@
         <div id="metrics" class="tab-pane" style="display:none">
             <h2>Context-Switch Grid</h2>
             <button id="month-view-btn">Toggle Month View</button>
+            <svg id="metrics-chart"></svg>
             <div id="grid" style="display:grid; grid-template-columns: repeat(7, 1fr); gap:1rem"></div>
             <h2>Switch Log</h2>
             <ul id="switch-log"></ul>
