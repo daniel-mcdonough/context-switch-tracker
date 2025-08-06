@@ -9,14 +9,29 @@
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/d3-metrics.css">
     <script defer src="/static/d3-metrics.js"></script>
+    <script defer src="/static/analytics.js"></script>
     <script defer src="/static/script.js"></script>
 </head>
 
 <body>
     <div class="container">
         <div class="app-header">
-            <h1 class="app-title">Context Switcher</h1>
-            <p class="app-subtitle">Track your task switches and boost productivity</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1 class="app-title">Context Switcher</h1>
+                    <p class="app-subtitle">Track your task switches and boost productivity</p>
+                </div>
+                <button id="theme-toggle" class="btn-outline" style="margin: 0;">
+                    <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <rect x="7" y="8" width="10" height="8" rx="1" ry="1"></rect>
+                        <path d="m8 2 0 2"></path>
+                        <path d="m16 2 0 2"></path>
+                        <path d="m21 12-2 0"></path>
+                    </svg>
+                    <span id="theme-label">Windows 95</span>
+                </button>
+            </div>
         </div>
 
         <ul id="tabs">
@@ -34,6 +49,20 @@
                     <line x1="6" y1="20" x2="6" y2="16"></line>
                 </svg>
                 Metrics
+            </li>
+            <li data-tab="analytics">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline; vertical-align: -2px; margin-right: 4px;">
+                    <path d="M3 3v18h18"></path>
+                    <path d="m19 9-5 5-4-4-3 3"></path>
+                </svg>
+                Analytics
+            </li>
+            <li data-tab="settings">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline; vertical-align: -2px; margin-right: 4px;">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                Settings
             </li>
         </ul>
 
@@ -129,6 +158,84 @@
                 <svg id="metrics-chart"></svg>
                 <h2>Recent Switch Log</h2>
                 <ul id="switch-log"></ul>
+            </div>
+            <div id="analytics" class="tab-pane" style="display:none">
+                <div class="analytics-controls">
+                    <button id="analytics-view-btn" class="btn-outline">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        30-Day View
+                    </button>
+                </div>
+                
+                <div class="analytics-layout">
+                    <div class="analytics-section">
+                        <h2>Top Time Consumers</h2>
+                        <div id="time-consumers-chart"></div>
+                        <div id="time-consumers-list"></div>
+                    </div>
+                    
+                    <div class="analytics-section">
+                        <h2>Context Switch Leaders</h2>
+                        <div id="switch-leaders-chart"></div>
+                        <div id="switch-leaders-list"></div>
+                    </div>
+                </div>
+                
+                <div class="analytics-section">
+                    <h2>Productivity Insights</h2>
+                    <div id="productivity-insights"></div>
+                </div>
+            </div>
+            <div id="settings" class="tab-pane" style="display:none">
+                <div class="settings-section">
+                    <h2>Custom Task Management</h2>
+                    <p class="settings-description">Manage your custom tasks. You can delete tasks that are no longer needed.</p>
+                    <div id="custom-tasks-list"></div>
+                    <div id="delete-result"></div>
+                </div>
+                
+                <div class="settings-section">
+                    <h2>Application Settings</h2>
+                    <div class="settings-item">
+                        <label class="settings-label">Theme</label>
+                        <div class="settings-value">
+                            <button id="settings-theme-toggle" class="btn-outline">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <rect x="7" y="8" width="10" height="8" rx="1" ry="1"></rect>
+                                    <path d="m8 2 0 2"></path>
+                                    <path d="m16 2 0 2"></path>
+                                    <path d="m21 12-2 0"></path>
+                                </svg>
+                                <span id="settings-theme-label">Windows 95</span>
+                            </button>
+                        </div>
+                        <div class="settings-description">Switch between modern and retro Windows 95 themes</div>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h2>Data Management</h2>
+                    <div class="settings-item">
+                        <label class="settings-label">Export Data</label>
+                        <div class="settings-value">
+                            <button id="export-data-btn" class="btn-secondary">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7,10 12,15 17,10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                                Export Switch History
+                            </button>
+                        </div>
+                        <div class="settings-description">Download your context switch data as CSV</div>
+                    </div>
+                </div>
             </div>
         </div> <!-- end tab-content -->
     </div> <!-- end container -->

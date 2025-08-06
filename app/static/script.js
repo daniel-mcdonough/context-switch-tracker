@@ -1,4 +1,47 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // Theme management
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeLabel = document.getElementById('theme-label');
+    const themeIcon = document.getElementById('theme-icon');
+    
+    // Load saved theme or default to modern
+    const savedTheme = localStorage.getItem('theme') || 'modern';
+    applyTheme(savedTheme);
+    
+    // Theme toggle functionality
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'modern';
+        const newTheme = currentTheme === 'win95' ? 'modern' : 'win95';
+        applyTheme(newTheme);
+        localStorage.setItem('theme', newTheme);
+    });
+    
+    function applyTheme(theme) {
+        if (theme === 'win95') {
+            document.documentElement.setAttribute('data-theme', 'win95');
+            themeLabel.textContent = 'Modern';
+            // Update icon to modern theme icon
+            themeIcon.innerHTML = `
+                <circle cx="12" cy="12" r="5"></circle>
+                <path d="m12 1 0 6m0 6 0 6"></path>
+                <path d="m4.2 4.2 4.2 4.2m5.6 5.6 4.2 4.2"></path>
+                <path d="m1 12 6 0m6 0 6 0"></path>
+                <path d="m4.2 19.8 4.2-4.2m5.6-5.6 4.2-4.2"></path>
+            `;
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            themeLabel.textContent = 'Windows 95';
+            // Update icon to retro computer icon
+            themeIcon.innerHTML = `
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <rect x="7" y="8" width="10" height="8" rx="1" ry="1"></rect>
+                <path d="m8 2 0 2"></path>
+                <path d="m16 2 0 2"></path>
+                <path d="m21 12-2 0"></path>
+            `;
+        }
+    }
+
     let monthView = false;
     const currentEl = document.getElementById("current-task");
     const ticketSel = document.getElementById("ticket-select");
@@ -140,7 +183,14 @@ document.addEventListener("DOMContentLoaded", () => {
             tab.classList.add("active");
             document.querySelectorAll(".tab-pane").forEach(p => p.style.display = "none");
             document.getElementById(tab.dataset.tab).style.display = "block";
-            if (tab.dataset.tab === "metrics") loadMetrics();
+            if (tab.dataset.tab === "metrics") {
+                loadMetrics();
+            } else if (tab.dataset.tab === "analytics") {
+                const view = window.analyticsMonthView ? "month" : "week";
+                loadAnalytics(view);
+            } else if (tab.dataset.tab === "settings") {
+                loadSettings();
+            }
         });
     });
 
@@ -150,6 +200,17 @@ document.addEventListener("DOMContentLoaded", () => {
         monthView = !monthView;
         loadMetrics();
     });
+
+    // Analytics toggle button
+    const analyticsBtn = document.getElementById("analytics-view-btn");
+    if (analyticsBtn) {
+        analyticsBtn.addEventListener("click", () => {
+            window.analyticsMonthView = !window.analyticsMonthView;
+            const view = window.analyticsMonthView ? "month" : "week";
+            analyticsBtn.textContent = window.analyticsMonthView ? "Weekly View" : "30-Day View";
+            loadAnalytics(view);
+        });
+    }
 
     // METRICS: fetch & render
     function loadMetrics() {
@@ -182,5 +243,112 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
     }
+
+    // Settings page functionality
+    function loadSettings() {
+        loadCustomTasks();
+        
+        // Update theme toggle in settings
+        const settingsThemeToggle = document.getElementById('settings-theme-toggle');
+        const settingsThemeLabel = document.getElementById('settings-theme-label');
+        if (settingsThemeToggle && settingsThemeLabel) {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'modern';
+            settingsThemeLabel.textContent = currentTheme === 'win95' ? 'Modern' : 'Windows 95';
+            
+            settingsThemeToggle.addEventListener('click', () => {
+                // Trigger the main theme toggle
+                themeToggle.click();
+                // Update the settings display
+                setTimeout(() => {
+                    const newTheme = document.documentElement.getAttribute('data-theme') || 'modern';
+                    settingsThemeLabel.textContent = newTheme === 'win95' ? 'Modern' : 'Windows 95';
+                }, 100);
+            });
+        }
+    }
+
+    function loadCustomTasks() {
+        const container = document.getElementById('custom-tasks-list');
+        container.innerHTML = '<p>Loading custom tasks...</p>';
+        
+        fetch('/tasks/custom')
+            .then(r => r.json())
+            .then(tasks => {
+                container.innerHTML = '';
+                
+                if (tasks.length === 0) {
+                    container.innerHTML = '<p class="no-tasks">No custom tasks created yet.</p>';
+                    return;
+                }
+
+                tasks.forEach(task => {
+                    const taskItem = document.createElement('div');
+                    taskItem.className = 'custom-task-item';
+                    taskItem.innerHTML = `
+                        <div class="task-info">
+                            <strong>${task.key}</strong>
+                            ${task.name ? `<span class="task-name">${task.name}</span>` : ''}
+                        </div>
+                        <button class="btn-danger delete-task-btn" data-key="${task.key}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 6h18"></path>
+                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                            </svg>
+                            Delete
+                        </button>
+                    `;
+                    container.appendChild(taskItem);
+                });
+
+                // Add delete event listeners
+                document.querySelectorAll('.delete-task-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const taskKey = e.target.closest('.delete-task-btn').dataset.key;
+                        if (confirm(`Are you sure you want to delete the custom task "${taskKey}"?`)) {
+                            deleteCustomTask(taskKey);
+                        }
+                    });
+                });
+            })
+            .catch(err => {
+                container.innerHTML = '<p class="error">Failed to load custom tasks.</p>';
+                console.error('Failed to load custom tasks:', err);
+            });
+    }
+
+    function deleteCustomTask(taskKey) {
+        const resultDiv = document.getElementById('delete-result');
+        
+        fetch(`/tasks/${encodeURIComponent(taskKey)}`, {
+            method: 'DELETE'
+        })
+        .then(r => r.json())
+        .then(result => {
+            if (result.error) {
+                resultDiv.textContent = `Error: ${result.error}`;
+                resultDiv.className = 'error';
+            } else {
+                resultDiv.textContent = `✓ Task "${taskKey}" deleted successfully`;
+                resultDiv.className = '';
+                // Reload the custom tasks list
+                loadCustomTasks();
+                // Reload the task selector on the switcher page
+                loadTasks();
+                // Auto-hide success message after 3 seconds
+                setTimeout(() => {
+                    resultDiv.textContent = '';
+                }, 3000);
+            }
+        })
+        .catch(err => {
+            resultDiv.textContent = 'Error: Failed to delete task';
+            resultDiv.className = 'error';
+            console.error('Delete error:', err);
+        });
+    }
+
+    // Expose loadSettings globally
+    window.loadSettings = loadSettings;
 });
 
