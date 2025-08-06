@@ -3,6 +3,7 @@
 from jira import JIRA
 from config import Config
 
+
 def get_jira_client():
     """
     Instantiate and return a JIRA client using credentials from Config.
@@ -11,6 +12,8 @@ def get_jira_client():
         server=Config.JIRA_URL,
         basic_auth=(Config.JIRA_USER, Config.JIRA_TOKEN)
     )
+
+
 
 def get_assigned_tickets(max_results: int = 50):
     """

@@ -702,6 +702,114 @@ button[type="submit"]:active, .btn-primary:active {
     color: var(--danger-color);
 }
 
+/* Tag Input System Styles */
+#tags-container {
+    position: relative;
+}
+
+#tags-input {
+    width: 100%;
+}
+
+#tag-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--background);
+    border: 2px inset var(--background);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.tag-suggestion {
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    border-bottom: 1px solid var(--border);
+}
+
+.tag-suggestion:hover {
+    background: var(--surface-hover);
+}
+
+.tag-suggestion:last-child {
+    border-bottom: none;
+}
+
+.tag-suggestion-main {
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.tag-suggestion-desc {
+    color: var(--text-secondary);
+    font-size: 10px;
+}
+
+#selected-tags {
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.selected-tag {
+    display: inline-flex;
+    align-items: center;
+    background: var(--primary-color);
+    color: var(--background);
+    padding: 2px 6px;
+    border-radius: var(--radius);
+    font-size: 10px;
+    font-weight: bold;
+    gap: 4px;
+}
+
+.selected-tag .remove-tag {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    color: var(--background);
+    font-size: 10px;
+    line-height: 1;
+    font-weight: bold;
+}
+
+.selected-tag .remove-tag:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Win95 specific tag styles */
+[data-theme="win95"] #tag-suggestions {
+    border: 2px inset var(--background);
+    background: #ffffff;
+}
+
+[data-theme="win95"] .tag-suggestion:hover {
+    background: var(--surface-hover);
+}
+
+[data-theme="win95"] .selected-tag {
+    border: 1px solid var(--border-dark);
+    background: var(--primary-color);
+}
+
+[data-theme="win95"] .selected-tag .remove-tag {
+    background: rgba(255, 255, 255, 0.8);
+    color: #000000;
+}
+
+[data-theme="win95"] .selected-tag .remove-tag:hover {
+    background: #ffffff;
+}
+
 #metrics h2 {
     font-size: 1.125rem;
     font-weight: 600;

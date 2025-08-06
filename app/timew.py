@@ -1,10 +1,11 @@
 # app/timew.py
 
 import subprocess
-import re
 from config import Config
 
 TIMEW_BIN = Config.TIMEWARRIOR_BIN
+
+
 
 def get_current_task():
     """
@@ -71,6 +72,8 @@ def get_current_summary():
 
 
 # New function: stop_task
+
+
 def stop_task():
     """
     Stops the current Timewarrior task without starting a new one.

@@ -21,6 +21,8 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 # 2) Base class
 Base = declarative_base()
 
+
+
 # 3) Switch record model
 class Switch(Base):
     __tablename__ = "switches"
@@ -30,8 +32,11 @@ class Switch(Base):
     from_task = Column(String, nullable=True)
     to_task = Column(String, nullable=False)
     note = Column(Text, nullable=True)
-    category = Column(String, nullable=True)
+    category = Column(String, nullable=True)  # Keep for backward compatibility
+    tags = Column(Text, nullable=True)  # JSON as text for SQLite
     is_switch = Column(Boolean, nullable=False, server_default="1")
+
+
 
 # CustomTask model for custom tasks
 class CustomTask(Base):
@@ -40,6 +45,20 @@ class CustomTask(Base):
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String, unique=True, nullable=False)
     name = Column(String, nullable=True)
+
+
+
+# TagPreset model for common tag combinations
+class TagPreset(Base):
+    __tablename__ = "tag_presets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tag_type = Column(String(50), nullable=False)
+    tag_value = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, server_default="1")
+
+
 
 # 4) Create the table (run once at startup)
 def init_db():

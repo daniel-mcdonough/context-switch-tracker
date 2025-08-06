@@ -51,6 +51,108 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultDiv = document.getElementById("result");
     const form = document.getElementById("switch-form");
 
+    // Tag system elements
+    const tagsInput = document.getElementById("tags-input");
+    const tagSuggestions = document.getElementById("tag-suggestions");
+    const selectedTagsContainer = document.getElementById("selected-tags");
+    let selectedTags = [];
+    let availableTagPresets = [];
+
+    // Tag system functions
+    function loadTagPresets() {
+        fetch("/tags/presets")
+            .then(r => r.json())
+            .then(presets => {
+                availableTagPresets = presets;
+            })
+            .catch(err => console.error("Failed to load tag presets:", err));
+    }
+
+    function showTagSuggestions(query) {
+        const filtered = availableTagPresets.filter(preset => 
+            preset.tag.toLowerCase().includes(query.toLowerCase()) ||
+            (preset.description && preset.description.toLowerCase().includes(query.toLowerCase()))
+        );
+
+        if (filtered.length === 0 || query.trim() === "") {
+            tagSuggestions.style.display = "none";
+            return;
+        }
+
+        tagSuggestions.innerHTML = "";
+        filtered.slice(0, 8).forEach(preset => {
+            const div = document.createElement("div");
+            div.className = "tag-suggestion";
+            div.innerHTML = `
+                <div class="tag-suggestion-main">${preset.tag}</div>
+                ${preset.description ? `<div class="tag-suggestion-desc">${preset.description}</div>` : ''}
+            `;
+            div.addEventListener("click", () => addTag(preset.tag));
+            tagSuggestions.appendChild(div);
+        });
+
+        tagSuggestions.style.display = "block";
+    }
+
+    function addTag(tag) {
+        if (!selectedTags.includes(tag)) {
+            selectedTags.push(tag);
+            renderSelectedTags();
+        }
+        tagsInput.value = "";
+        tagSuggestions.style.display = "none";
+    }
+
+    function removeTag(tag) {
+        selectedTags = selectedTags.filter(t => t !== tag);
+        renderSelectedTags();
+    }
+
+    function renderSelectedTags() {
+        selectedTagsContainer.innerHTML = "";
+        selectedTags.forEach(tag => {
+            const span = document.createElement("span");
+            span.className = "selected-tag";
+            span.innerHTML = `
+                ${tag}
+                <span class="remove-tag" data-tag="${tag}">×</span>
+            `;
+            span.querySelector(".remove-tag").addEventListener("click", (e) => {
+                removeTag(e.target.dataset.tag);
+            });
+            selectedTagsContainer.appendChild(span);
+        });
+    }
+
+    // Tag input event listeners
+    if (tagsInput) {
+        tagsInput.addEventListener("input", (e) => {
+            const query = e.target.value;
+            if (query.trim()) {
+                showTagSuggestions(query);
+            } else {
+                tagSuggestions.style.display = "none";
+            }
+        });
+
+        tagsInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === ",") {
+                e.preventDefault();
+                const value = tagsInput.value.trim();
+                if (value) {
+                    addTag(value);
+                }
+            }
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener("click", (e) => {
+            if (!document.getElementById("tags-container").contains(e.target)) {
+                tagSuggestions.style.display = "none";
+            }
+        });
+    }
+
     // Helper to fetch and display the current Timewarrior summary
     function fetchCurrent() {
         fetch("/current")
@@ -62,6 +164,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Fetch and display current task
     fetchCurrent();
+
+    // Load tag presets
+    loadTagPresets();
 
     // Load tasks (Jira + custom)
     function loadTasks() {
@@ -90,12 +195,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const note = noteInput.value.trim();
         const category = categoryIn.value.trim();
         const is_switch = isSwitchCheckbox.checked;
+        const tags = selectedTags;
         if (!to_task) return alert("Please select a ticket.");
 
         fetch("/switch", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ to_task, note, category, is_switch })
+            body: JSON.stringify({ to_task, note, category, is_switch, tags })
         })
             .then(r => r.json())
             .then(json => {
@@ -109,6 +215,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     noteInput.value = "";
                     categoryIn.value = "";
                     ticketSel.value = "";
+                    selectedTags = [];
+                    renderSelectedTags();
                     fetchCurrent();
                     // Auto-hide success message after 5 seconds
                     setTimeout(() => {

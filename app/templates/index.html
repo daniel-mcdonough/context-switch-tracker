@@ -90,8 +90,17 @@
                             </div>
 
                             <div class="form-group">
-                                <label for="category">Category:</label>
+                                <label for="category">Category (Legacy):</label>
                                 <input type="text" id="category" placeholder="e.g., bug, meeting, interruption" />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="tags-input">Tags:</label>
+                                <div id="tags-container">
+                                    <input type="text" id="tags-input" placeholder="Type to search tags (e.g., meeting:standup)" />
+                                    <div id="tag-suggestions" style="display: none;"></div>
+                                    <div id="selected-tags"></div>
+                                </div>
                             </div>
 
                             <div class="checkbox-group">
@@ -189,6 +198,20 @@
                 <div class="analytics-section">
                     <h2>Productivity Insights</h2>
                     <div id="productivity-insights"></div>
+                </div>
+                
+                <div class="analytics-layout">
+                    <div class="analytics-section">
+                        <h2>Top Tags</h2>
+                        <div id="tag-analytics-chart"></div>
+                        <div id="tag-analytics-list"></div>
+                    </div>
+                    
+                    <div class="analytics-section">
+                        <h2>Tag Categories</h2>
+                        <div id="tag-types-chart"></div>
+                        <div id="tag-types-list"></div>
+                    </div>
                 </div>
             </div>
             <div id="settings" class="tab-pane" style="display:none">
