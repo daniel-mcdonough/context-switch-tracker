@@ -29,7 +29,7 @@
                         <path d="m16 2 0 2"></path>
                         <path d="m21 12-2 0"></path>
                     </svg>
-                    <span id="theme-label">Windows 95</span>
+                    <span id="theme-label">Warm</span>
                 </button>
             </div>
         </div>
@@ -227,18 +227,13 @@
                     <div class="settings-item">
                         <label class="settings-label">Theme</label>
                         <div class="settings-value">
-                            <button id="settings-theme-toggle" class="btn-outline">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                    <rect x="7" y="8" width="10" height="8" rx="1" ry="1"></rect>
-                                    <path d="m8 2 0 2"></path>
-                                    <path d="m16 2 0 2"></path>
-                                    <path d="m21 12-2 0"></path>
-                                </svg>
-                                <span id="settings-theme-label">Windows 95</span>
-                            </button>
+                            <select id="theme-selector" class="theme-selector">
+                                <option value="">Warm (Default)</option>
+                                <option value="win95">Windows 95</option>
+                                <option value="miku">Hatsune Miku</option>
+                            </select>
                         </div>
-                        <div class="settings-description">Switch between modern and retro Windows 95 themes</div>
+                        <div class="settings-description">Choose between Warm, retro Windows 95, or vibrant Hatsune Miku themes</div>
                     </div>
                 </div>
                 

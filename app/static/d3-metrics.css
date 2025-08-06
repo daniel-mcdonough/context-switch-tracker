@@ -12,7 +12,7 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     font-size: 14px;
     font-weight: 600;
-    fill: #64748b;
+    fill: #6b7280;
 }
 
 .day-cell rect {
@@ -21,7 +21,7 @@
 
 .day-cell rect:hover {
     stroke-width: 2 !important;
-    stroke: #667eea !important;
+    stroke: #6b7280 !important;
     filter: brightness(1.1);
 }
 
@@ -30,48 +30,48 @@
 }
 
 .bar {
-    fill: #64748b;
+    fill: #9ca3af;
     transition: all 0.3s ease;
     rx: 4;
     ry: 4;
 }
 
 .bar:hover {
-    fill: #475569;
+    fill: #6b7280;
     filter: brightness(1.1);
     cursor: pointer;
 }
 
 .bar.zero {
-    fill: #e2e8f0;
+    fill: #e5e7eb;
 }
 
 .bar.high {
-    fill: #dc2626;
+    fill: #ef4444;
 }
 
 .bar.medium {
-    fill: #d97706;
+    fill: #f59e0b;
 }
 
 .bar.low {
-    fill: #059669;
+    fill: #10b981;
 }
 
 .axis {
     font: 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-    color: #64748b;
+    color: #6b7280;
 }
 
 .axis path,
 .axis line {
     fill: none;
-    stroke: #e2e8f0;
+    stroke: #e5e7eb;
     shape-rendering: crispEdges;
 }
 
 .axis text {
-    fill: #64748b;
+    fill: #6b7280;
 }
 
 .x.axis path {
@@ -83,7 +83,7 @@
 }
 
 .grid line {
-    stroke: #f1f5f9;
+    stroke: #f3f4f6;
     stroke-opacity: 0.7;
     shape-rendering: crispEdges;
 }
@@ -96,14 +96,14 @@
     position: absolute;
     display: none;
     pointer-events: none;
-    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
     color: #fff;
     padding: 0.75rem 1rem;
     border-radius: 8px;
     font-size: 0.875rem;
     max-width: 200px;
     z-index: 1000;
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.15);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
@@ -120,17 +120,17 @@
 .chart-title {
     font-size: 16px;
     font-weight: 600;
-    fill: #1e293b;
+    fill: #374151;
     text-anchor: middle;
 }
 
 .chart-subtitle {
     font-size: 12px;
-    fill: #64748b;
+    fill: #6b7280;
     text-anchor: middle;
 }
 
 .chart-label {
     font-size: 11px;
-    fill: #94a3b8;
+    fill: #9ca3af;
 }

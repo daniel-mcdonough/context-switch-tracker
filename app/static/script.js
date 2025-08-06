@@ -3,35 +3,50 @@ document.addEventListener("DOMContentLoaded", () => {
     const themeToggle = document.getElementById('theme-toggle');
     const themeLabel = document.getElementById('theme-label');
     const themeIcon = document.getElementById('theme-icon');
+    const themeSelector = document.getElementById('theme-selector');
     
-    // Load saved theme or default to modern
-    const savedTheme = localStorage.getItem('theme') || 'modern';
+    const themes = ['warm', 'win95', 'miku'];
+    const themeNames = {
+        'warm': 'Warm',
+        'win95': 'Windows 95', 
+        'miku': 'Hatsune Miku'
+    };
+    
+    // Load saved theme or default to warm
+    const savedTheme = localStorage.getItem('theme') || 'warm';
     applyTheme(savedTheme);
     
-    // Theme toggle functionality
+    // Theme toggle functionality (cycles through themes)
     themeToggle.addEventListener('click', () => {
-        const currentTheme = document.documentElement.getAttribute('data-theme') || 'modern';
-        const newTheme = currentTheme === 'win95' ? 'modern' : 'win95';
+        const currentTheme = document.documentElement.getAttribute('data-theme') || '';
+        let currentIndex;
+        if (currentTheme === '') {
+            currentIndex = 0; // warm theme
+        } else {
+            currentIndex = themes.indexOf(currentTheme);
+        }
+        const nextIndex = (currentIndex + 1) % themes.length;
+        const newTheme = themes[nextIndex];
         applyTheme(newTheme);
         localStorage.setItem('theme', newTheme);
     });
     
+    // Theme selector functionality
+    if (themeSelector) {
+        themeSelector.addEventListener('change', (e) => {
+            const newTheme = e.target.value || 'warm';
+            applyTheme(newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+    }
+    
     function applyTheme(theme) {
+        // Remove all theme attributes first
+        document.documentElement.removeAttribute('data-theme');
+        
         if (theme === 'win95') {
             document.documentElement.setAttribute('data-theme', 'win95');
-            themeLabel.textContent = 'Modern';
-            // Update icon to modern theme icon
-            themeIcon.innerHTML = `
-                <circle cx="12" cy="12" r="5"></circle>
-                <path d="m12 1 0 6m0 6 0 6"></path>
-                <path d="m4.2 4.2 4.2 4.2m5.6 5.6 4.2 4.2"></path>
-                <path d="m1 12 6 0m6 0 6 0"></path>
-                <path d="m4.2 19.8 4.2-4.2m5.6-5.6 4.2-4.2"></path>
-            `;
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-            themeLabel.textContent = 'Windows 95';
-            // Update icon to retro computer icon
+            themeLabel.textContent = 'Hatsune Miku';
             themeIcon.innerHTML = `
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                 <rect x="7" y="8" width="10" height="8" rx="1" ry="1"></rect>
@@ -39,6 +54,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 <path d="m16 2 0 2"></path>
                 <path d="m21 12-2 0"></path>
             `;
+        } else if (theme === 'miku') {
+            document.documentElement.setAttribute('data-theme', 'miku');
+            themeLabel.textContent = 'Warm';
+            themeIcon.innerHTML = `
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM7 13.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zm10 0c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zm-5 5c-2.33 0-4.31-1.46-5.11-3.5h10.22c-.8 2.04-2.78 3.5-5.11 3.5z"/>
+            `;
+        } else {
+            // warm theme (default)
+            themeLabel.textContent = 'Windows 95';
+            themeIcon.innerHTML = `
+                <circle cx="12" cy="12" r="5"></circle>
+                <path d="m12 1 0 6m0 6 0 6"></path>
+                <path d="m4.2 4.2 4.2 4.2m5.6 5.6 4.2 4.2"></path>
+                <path d="m1 12 6 0m6 0 6 0"></path>
+                <path d="m4.2 19.8 4.2-4.2m5.6-5.6 4.2-4.2"></path>
+            `;
+        }
+        
+        // Update theme selector if it exists
+        if (themeSelector) {
+            themeSelector.value = theme === 'warm' ? '' : theme;
         }
     }
 
@@ -356,23 +392,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function loadSettings() {
         loadCustomTasks();
         
-        // Update theme toggle in settings
-        const settingsThemeToggle = document.getElementById('settings-theme-toggle');
-        const settingsThemeLabel = document.getElementById('settings-theme-label');
-        if (settingsThemeToggle && settingsThemeLabel) {
-            const currentTheme = document.documentElement.getAttribute('data-theme') || 'modern';
-            settingsThemeLabel.textContent = currentTheme === 'win95' ? 'Modern' : 'Windows 95';
-            
-            settingsThemeToggle.addEventListener('click', () => {
-                // Trigger the main theme toggle
-                themeToggle.click();
-                // Update the settings display
-                setTimeout(() => {
-                    const newTheme = document.documentElement.getAttribute('data-theme') || 'modern';
-                    settingsThemeLabel.textContent = newTheme === 'win95' ? 'Modern' : 'Windows 95';
-                }, 100);
-            });
-        }
+        // Theme selector is now handled by the main theme management code above
     }
 
     function loadCustomTasks() {
