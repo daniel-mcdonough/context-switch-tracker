@@ -1,12 +1,136 @@
+/* D3 Metrics Styles */
+#metrics-chart {
+    width: 100%;
+    min-height: 300px;
+}
+
+#calendar-grid {
+    margin-bottom: 1rem;
+}
+
+.day-header {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    fill: #64748b;
+}
+
+.day-cell rect {
+    transition: all 0.2s ease;
+}
+
+.day-cell rect:hover {
+    stroke-width: 2 !important;
+    stroke: #667eea !important;
+    filter: brightness(1.1);
+}
+
+.week-number {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.bar {
+    fill: #667eea;
+    transition: all 0.3s ease;
+    rx: 4;
+    ry: 4;
+}
+
+.bar:hover {
+    fill: #764ba2;
+    filter: brightness(1.1);
+    cursor: pointer;
+}
+
+.bar.zero {
+    fill: #e2e8f0;
+}
+
+.bar.high {
+    fill: #ef4444;
+}
+
+.bar.medium {
+    fill: #f59e0b;
+}
+
+.bar.low {
+    fill: #10b981;
+}
+
+.axis {
+    font: 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    color: #64748b;
+}
+
+.axis path,
+.axis line {
+    fill: none;
+    stroke: #e2e8f0;
+    shape-rendering: crispEdges;
+}
+
+.axis text {
+    fill: #64748b;
+}
+
+.x.axis path {
+    display: none;
+}
+
+.y.axis .domain {
+    display: none;
+}
+
+.grid line {
+    stroke: #f1f5f9;
+    stroke-opacity: 0.7;
+    shape-rendering: crispEdges;
+}
+
+.grid path {
+    stroke-width: 0;
+}
+
 #tooltip {
     position: absolute;
     display: none;
     pointer-events: none;
-    background: rgba(0, 0, 0, 0.7);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #fff;
-    padding: 0.5rem;
-    border-radius: 4px;
-    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
     max-width: 200px;
-    z-index: 10;
+    z-index: 1000;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+#tooltip.show {
+    display: block;
+}
+
+#tooltip strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+}
+
+.chart-title {
+    font-size: 16px;
+    font-weight: 600;
+    fill: #1e293b;
+    text-anchor: middle;
+}
+
+.chart-subtitle {
+    font-size: 12px;
+    fill: #64748b;
+    text-anchor: middle;
+}
+
+.chart-label {
+    font-size: 11px;
+    fill: #94a3b8;
 }

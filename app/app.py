@@ -178,8 +178,9 @@ def get_switch_counts():
             out.append({ "date": iso, "count": counts.get(iso, 0) })
             day += timedelta(days=1)
     else:
-        # Week view: current week Monday→Sunday
-        week_start = today - timedelta(days=today.weekday())
+        # Week view: current week Sunday→Saturday
+        days_since_sunday = (today.weekday() + 1) % 7  # Convert Mon=0 to Sun=0
+        week_start = today - timedelta(days=days_since_sunday)
         week_end = week_start + timedelta(days=6)
         rows = (
             db.query(
@@ -204,10 +205,11 @@ def get_switch_counts():
 @app.route("/metrics/switches", methods=["GET"])
 def get_weekly_switches():
     """
-    Return the raw Switch records for the current week, ordered newest-first.
+    Return the raw Switch records for the current week (Sunday-Saturday), ordered newest-first.
     """
     today = date.today()
-    week_start = today - timedelta(days=today.weekday())
+    days_since_sunday = (today.weekday() + 1) % 7  # Convert Mon=0 to Sun=0
+    week_start = today - timedelta(days=days_since_sunday)
 
     db = SessionLocal()
     rows = (
