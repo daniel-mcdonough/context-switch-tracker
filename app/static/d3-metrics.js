@@ -28,10 +28,10 @@
             const switchesByDate = d3.group(switches, d => d.timestamp.slice(0, 10));
             const maxCount = d3.max(days, d => d.count);
             
-            // Enhanced color scale with better visual feedback
+            // Enhanced color scale with muted tones
             const colorScale = d3.scaleThreshold()
                 .domain([0, 1, 3, 5, 10])
-                .range(['#f1f5f9', '#dbeafe', '#93c5fd', '#3b82f6', '#1d4ed8', '#1e40af']);
+                .range(['#f8fafc', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569']);
 
             // Calculate calendar grid dimensions (Sunday = 0)
             const firstDate = new Date(days[0].date);
@@ -110,7 +110,7 @@
                 .attr("rx", 4)
                 .attr("ry", 4)
                 .attr("fill", d => d.inRange ? colorScale(d.count) : '#f8fafc')
-                .attr("stroke", d => d.isToday ? '#ef4444' : (d.inRange ? '#e2e8f0' : '#f1f5f9'))
+                .attr("stroke", d => d.isToday ? '#dc2626' : (d.inRange ? '#e2e8f0' : '#f1f5f9'))
                 .attr("stroke-width", d => d.isToday ? 2 : 1)
                 .style("cursor", d => d.inRange ? "pointer" : "default")
                 .on("mouseover", (event, d) => {
@@ -155,7 +155,7 @@
                 .attr("font-weight", d => d.isToday ? "bold" : "normal")
                 .attr("fill", d => {
                     if (!d.inRange) return '#cbd5e1';
-                    if (d.isToday) return '#ef4444';
+                    if (d.isToday) return '#dc2626';
                     return d.count > 5 ? '#ffffff' : '#1e293b';
                 })
                 .text(d => d.dayOfMonth);

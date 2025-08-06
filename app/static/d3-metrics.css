@@ -30,14 +30,14 @@
 }
 
 .bar {
-    fill: #667eea;
+    fill: #64748b;
     transition: all 0.3s ease;
     rx: 4;
     ry: 4;
 }
 
 .bar:hover {
-    fill: #764ba2;
+    fill: #475569;
     filter: brightness(1.1);
     cursor: pointer;
 }
@@ -47,15 +47,15 @@
 }
 
 .bar.high {
-    fill: #ef4444;
+    fill: #dc2626;
 }
 
 .bar.medium {
-    fill: #f59e0b;
+    fill: #d97706;
 }
 
 .bar.low {
-    fill: #10b981;
+    fill: #059669;
 }
 
 .axis {
@@ -96,7 +96,7 @@
     position: absolute;
     display: none;
     pointer-events: none;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
     color: #fff;
     padding: 0.75rem 1rem;
     border-radius: 8px;

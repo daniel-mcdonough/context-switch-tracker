@@ -44,53 +44,53 @@
                     <pre id="current-task">Loading...</pre>
                 </div>
 
-                <div class="form-section">
-                    <h2>Switch Task</h2>
-                    <form id="switch-form">
-                        <div class="form-group">
-                            <label for="ticket-select">Select task to switch to:</label>
-                            <select id="ticket-select">
-                                <option value="" disabled selected>Loading tasks...</option>
-                            </select>
-                        </div>
+                <div class="switcher-layout">
+                    <div class="form-section">
+                        <h2>Switch Task</h2>
+                        <form id="switch-form">
+                            <div class="form-group">
+                                <label for="ticket-select">Select task:</label>
+                                <select id="ticket-select">
+                                    <option value="" disabled selected>Loading...</option>
+                                </select>
+                            </div>
 
-                        <div class="form-group">
-                            <label for="note">Note (optional):</label>
-                            <textarea id="note" placeholder="Why are you switching? (e.g., urgent request, scheduled meeting)"></textarea>
-                        </div>
+                            <div class="form-group">
+                                <label for="note">Note:</label>
+                                <textarea id="note" placeholder="Why switching? (optional)"></textarea>
+                            </div>
 
-                        <div class="form-group">
-                            <label for="category">Category (optional):</label>
-                            <input type="text" id="category" placeholder="e.g., bug, meeting, deep_work, interruption" />
-                        </div>
+                            <div class="form-group">
+                                <label for="category">Category:</label>
+                                <input type="text" id="category" placeholder="e.g., bug, meeting, interruption" />
+                            </div>
 
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="is-switch" checked />
-                            <label for="is-switch">Count as context switch</label>
-                        </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="is-switch" checked />
+                                <label for="is-switch">Count as context switch</label>
+                            </div>
 
-                        <div class="button-group">
-                            <button type="submit" class="btn-primary">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="16 18 22 12 16 6"></polyline>
-                                    <polyline points="8 6 2 12 8 18"></polyline>
-                                </svg>
-                                Switch
-                            </button>
-                            <button type="button" id="stop-task" class="btn-danger">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                </svg>
-                                Stop
-                            </button>
-                        </div>
-                    </form>
-                    <div id="result"></div>
-                </div>
+                            <div class="button-group">
+                                <button type="submit" class="btn-primary">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="16 18 22 12 16 6"></polyline>
+                                        <polyline points="8 6 2 12 8 18"></polyline>
+                                    </svg>
+                                    Switch
+                                </button>
+                                <button type="button" id="stop-task" class="btn-danger">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    </svg>
+                                    Stop
+                                </button>
+                            </div>
+                            <div id="result"></div>
+                        </form>
+                    </div>
 
-                <div class="form-section">
-                    <h2>Add Custom Task</h2>
-                    <div class="custom-task-form">
+                    <div class="form-section">
+                        <h2>Add Custom Task</h2>
                         <div class="form-group">
                             <label for="new-key">Task Key:</label>
                             <input type="text" id="new-key" placeholder="e.g., BREAK" />
@@ -99,17 +99,17 @@
                             <label for="new-name">Task Name:</label>
                             <input type="text" id="new-name" placeholder="e.g., Coffee break" />
                         </div>
-                        <div class="form-group" style="align-self: end;">
-                            <button id="add-task" class="btn-secondary">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <div class="form-group">
+                            <button id="add-task" class="btn-secondary" style="width: 100%;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
                                 </svg>
                                 Add Task
                             </button>
                         </div>
+                        <div id="add-result"></div>
                     </div>
-                    <div id="add-result"></div>
                 </div>
             </div> <!-- end switcher -->
             <div id="metrics" class="tab-pane" style="display:none">
