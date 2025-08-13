@@ -356,6 +356,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const view = monthView ? "month" : "week";
         // Render the D3 chart
         loadD3Metrics(view);
+        // Render the hours worked calendar
+        if (window.loadHoursCalendar) {
+            loadHoursCalendar(view);
+        }
         // Update the raw switch log
         const logEl = document.getElementById("switch-log");
         logEl.innerHTML = "";

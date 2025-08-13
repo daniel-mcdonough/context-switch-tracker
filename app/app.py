@@ -320,7 +320,7 @@ def get_switches():
     db.close()
 
     out = [
-        {"timestamp": r.timestamp.isoformat(),
+        {"timestamp": r.timestamp.astimezone().isoformat(),
             "from": r.from_task,
             "to":   r.to_task,
             "note": r.note,
@@ -600,6 +600,97 @@ def get_tag_analytics():
 
     db.close()
     return jsonify(result), 200
+
+@app.route("/metrics/hours", methods=["GET"])
+def get_estimated_hours():
+    """
+    Returns a list of {date: 'YYYY-MM-DD', hours: N} for either
+    the current week (Mon→Sun) or the current month, based on the
+    'view' query parameter ('week' or 'month').
+    Calculates estimated work hours based on time between switches.
+    """
+    view = request.args.get("view", "week")
+    today = date.today()
+
+    db = SessionLocal()
+    out = []
+
+    if view == "month":
+        # First day of current month
+        start = today.replace(day=1)
+        # Compute first day of next month
+        if start.month == 12:
+            next_month = date(start.year + 1, 1, 1)
+        else:
+            next_month = date(start.year, start.month + 1, 1)
+        # Last day of current month
+        last_day = next_month - timedelta(days=1)
+
+        # Get all switches in the month
+        switches = (
+            db.query(Switch)
+            .filter(Switch.timestamp >= start)
+            .filter(Switch.timestamp < next_month)
+            .order_by(Switch.timestamp.asc())
+            .all()
+        )
+
+        # Calculate daily hours
+        daily_hours = {}
+        for i in range(len(switches) - 1):
+            current_switch = switches[i]
+            next_switch = switches[i + 1]
+            
+            if current_switch.to_task:  # Only count time when working on a task
+                duration_hours = (next_switch.timestamp - current_switch.timestamp).total_seconds() / 3600
+                # Cap individual sessions at 4 hours to avoid skewing data
+                duration_hours = min(duration_hours, 4.0)
+                
+                switch_date = current_switch.timestamp.date().isoformat()
+                daily_hours[switch_date] = daily_hours.get(switch_date, 0) + duration_hours
+
+        # Build output for each day of month
+        day = start
+        while day <= last_day:
+            iso = day.isoformat()
+            out.append({"date": iso, "hours": round(daily_hours.get(iso, 0), 1)})
+            day += timedelta(days=1)
+    else:
+        # Week view: current week Sunday→Saturday
+        days_since_sunday = (today.weekday() + 1) % 7  # Convert Mon=0 to Sun=0
+        week_start = today - timedelta(days=days_since_sunday)
+        week_end = week_start + timedelta(days=6)
+        
+        # Get all switches in the week
+        switches = (
+            db.query(Switch)
+            .filter(Switch.timestamp >= week_start)
+            .filter(Switch.timestamp < week_end + timedelta(days=1))
+            .order_by(Switch.timestamp.asc())
+            .all()
+        )
+
+        # Calculate daily hours
+        daily_hours = {}
+        for i in range(len(switches) - 1):
+            current_switch = switches[i]
+            next_switch = switches[i + 1]
+            
+            if current_switch.to_task:  # Only count time when working on a task
+                duration_hours = (next_switch.timestamp - current_switch.timestamp).total_seconds() / 3600
+                # Cap individual sessions at 4 hours to avoid skewing data
+                duration_hours = min(duration_hours, 4.0)
+                
+                switch_date = current_switch.timestamp.date().isoformat()
+                daily_hours[switch_date] = daily_hours.get(switch_date, 0) + duration_hours
+
+        for i in range(7):
+            d = week_start + timedelta(days=i)
+            iso = d.isoformat()
+            out.append({"date": iso, "hours": round(daily_hours.get(iso, 0), 1)})
+
+    db.close()
+    return jsonify(out), 200
 
 if __name__ == "__main__":
     # Default host/port; override with FLASK_RUN_HOST/PORT if desired

@@ -151,9 +151,22 @@
                 </div>
             </div> <!-- end switcher -->
             <div id="metrics" class="tab-pane" style="display:none">
-                <h2>Context Switch Calendar</h2>
-                <div id="calendar-grid"></div>
-                <svg id="metrics-chart"></svg>
+                <div class="calendar-layout">
+                    <div class="calendar-section">
+                        <h2>Context Switch Calendar</h2>
+                        <div id="calendar-grid"></div>
+                        <svg id="metrics-chart"></svg>
+                    </div>
+                    
+                    <div class="calendar-section">
+                        <h2>Estimated Hours Worked Calendar</h2>
+                        <div id="hours-metrics">
+                            <div id="hours-calendar-grid"></div>
+                            <svg id="hours-chart"></svg>
+                        </div>
+                    </div>
+                </div>
+                
                 <h2>Recent Switch Log</h2>
                 <ul id="switch-log"></ul>
             </div>
