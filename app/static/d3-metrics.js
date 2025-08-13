@@ -211,6 +211,7 @@
         const margin = { top: 40, right: 20, bottom: 60, left: 30 };
         const cellSize = 54;
         const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const weeklyColumnWidth = cellSize * 0.8;
 
         fetch(`/metrics/hours?view=${view}`)
         .then(r => r.json())
@@ -237,7 +238,7 @@
             const totalCells = totalDays + firstDayOffset;
             const numWeeks = Math.ceil(totalCells / 7);
             
-            const width = 7 * cellSize + margin.left + margin.right;
+            const width = 7 * cellSize + weeklyColumnWidth + 10 + margin.left + margin.right;
             const height = numWeeks * cellSize + margin.top + margin.bottom;
             svg.attr("width", width).attr("height", height);
 
@@ -256,6 +257,17 @@
                 .attr("font-weight", "600")
                 .attr("fill", "#64748b")
                 .text(d => d);
+
+            // Add weekly total header
+            g.append("text")
+                .attr("class", "day-header")
+                .attr("x", 7 * cellSize + 5 + weeklyColumnWidth / 2)
+                .attr("y", -10)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "14px")
+                .attr("font-weight", "600")
+                .attr("fill", "#64748b")
+                .text("Week");
 
             // Create tooltip
             let tooltip = d3.select("body").select("#hours-tooltip");
@@ -285,6 +297,22 @@
                     isToday: dateStr === todayStr
                 });
                 currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            // Calculate weekly totals
+            const weeklyTotals = [];
+            for (let week = 0; week < numWeeks; week++) {
+                let weekTotal = 0;
+                for (let day = 0; day < 7; day++) {
+                    const index = week * 7 + day;
+                    if (index < allDates.length) {
+                        weekTotal += allDates[index].hours;
+                    }
+                }
+                weeklyTotals.push({
+                    week: week,
+                    total: Math.round(weekTotal * 10) / 10 // Round to 1 decimal
+                });
             }
 
             // Draw calendar cells
@@ -382,6 +410,55 @@
                     const weekNum = Math.ceil((weekDate.getDate()) / 7);
                     return weekNum;
                 });
+
+            // Add weekly total cells
+            const weeklyColorScale = d3.scaleThreshold()
+                .domain([0, 10, 20, 30, 40])
+                .range(['#f8fafc', '#dcfce7', '#86efac', '#fbbf24', '#ef4444']);
+
+            const weeklyCells = g.selectAll("g.week-total")
+                .data(weeklyTotals)
+                .enter().append("g")
+                .attr("class", "week-total")
+                .attr("transform", d => `translate(${7 * cellSize + 5}, ${d.week * cellSize})`);
+
+            weeklyCells.append("rect")
+                .attr("width", weeklyColumnWidth)
+                .attr("height", cellSize - 2)
+                .attr("rx", 4)
+                .attr("ry", 4)
+                .attr("fill", d => weeklyColorScale(d.total))
+                .attr("stroke", "#e2e8f0")
+                .attr("stroke-width", 1)
+                .style("cursor", "pointer")
+                .on("mouseover", (event, d) => {
+                    let assessment = 'Light week';
+                    if (d.total >= 40) assessment = 'Heavy week';
+                    else if (d.total >= 30) assessment = 'Busy week';
+                    else if (d.total >= 20) assessment = 'Normal week';
+                    
+                    let html = `<strong>Week ${d.week + 1}</strong><br>`;
+                    html += `Total hours: ${d.total}h<br>`;
+                    html += `<span style="font-size: 0.75rem">${assessment}</span>`;
+                    
+                    tooltip.html(html)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px")
+                        .style("display", "block");
+                })
+                .on("mouseout", () => {
+                    tooltip.style("display", "none");
+                });
+
+            weeklyCells.append("text")
+                .attr("x", weeklyColumnWidth / 2)
+                .attr("y", cellSize / 2)
+                .attr("dy", "0.35em")
+                .attr("text-anchor", "middle")
+                .attr("font-size", "11px")
+                .attr("font-weight", "bold")
+                .attr("fill", d => d.total >= 30 ? '#ffffff' : '#1e293b')
+                .text(d => d.total + 'h');
         });
     }
 
