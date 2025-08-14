@@ -264,17 +264,17 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     });
 
-    // Add custom task handler
+    // Add internal task handler
     document.getElementById("add-task").addEventListener("click", () => {
-        const key = document.getElementById("new-key").value.trim();
         const name = document.getElementById("new-name").value.trim();
-        if (!key) {
-            return alert("Key is required");
+        const description = document.getElementById("new-description").value.trim();
+        if (!name) {
+            return alert("Task name is required");
         }
         fetch("/tasks", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ key, name })
+            body: JSON.stringify({ name, description })
         })
             .then(r => r.json())
             .then(json => {
@@ -283,12 +283,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     addResult.textContent = "Error: " + json.error;
                     addResult.className = "error";
                 } else {
-                    addResult.textContent = `✓ Added task ${json.key}`;
+                    addResult.textContent = `✓ Created task ${json.ticket_id}: ${json.name}`;
                     addResult.className = "";
                     // Clear inputs
-                    document.getElementById("new-key").value = "";
                     document.getElementById("new-name").value = "";
+                    document.getElementById("new-description").value = "";
                     loadTasks();
+                    loadKanbanBoard();
                     // Auto-hide success message after 5 seconds
                     setTimeout(() => {
                         addResult.textContent = "";
@@ -329,6 +330,8 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (tab.dataset.tab === "analytics") {
                 const view = window.analyticsMonthView ? "month" : "week";
                 loadAnalytics(view);
+            } else if (tab.dataset.tab === "kanban") {
+                loadKanbanBoard();
             } else if (tab.dataset.tab === "settings") {
                 loadSettings();
             }
@@ -390,93 +393,135 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Settings page functionality
     function loadSettings() {
-        loadCustomTasks();
-        
         // Theme selector is now handled by the main theme management code above
     }
 
-    function loadCustomTasks() {
-        const container = document.getElementById('custom-tasks-list');
-        container.innerHTML = '<p>Loading custom tasks...</p>';
+    function loadKanbanBoard() {
+        // Load tasks for each status column
+        loadKanbanColumn('todo');
+        loadKanbanColumn('in_progress');
+        loadKanbanColumn('done');
+    }
+
+    function loadKanbanColumn(status) {
+        const container = document.getElementById(`kanban-${status.replace('_', '-')}`);
+        container.innerHTML = '<div class="kanban-loading">Loading...</div>';
         
-        fetch('/tasks/custom')
+        fetch(`/tasks/internal?status=${status}`)
             .then(r => r.json())
             .then(tasks => {
                 container.innerHTML = '';
                 
                 if (tasks.length === 0) {
-                    container.innerHTML = '<p class="no-tasks">No custom tasks created yet.</p>';
+                    container.innerHTML = '<div class="kanban-empty">No tasks</div>';
                     return;
                 }
 
                 tasks.forEach(task => {
-                    const taskItem = document.createElement('div');
-                    taskItem.className = 'custom-task-item';
-                    taskItem.innerHTML = `
-                        <div class="task-info">
-                            <strong>${task.key}</strong>
-                            ${task.name ? `<span class="task-name">${task.name}</span>` : ''}
+                    const taskCard = document.createElement('div');
+                    taskCard.className = 'kanban-task';
+                    taskCard.dataset.taskId = task.ticket_id;
+                    taskCard.innerHTML = `
+                        <div class="kanban-task-header">
+                            <span class="kanban-task-id">${task.ticket_id}</span>
+                            <button class="kanban-task-delete" data-task-id="${task.ticket_id}" title="Delete task">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 6L6 18"></path>
+                                    <path d="M6 6l12 12"></path>
+                                </svg>
+                            </button>
                         </div>
-                        <button class="btn-danger delete-task-btn" data-key="${task.key}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 6h18"></path>
-                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                            </svg>
-                            Delete
-                        </button>
+                        <div class="kanban-task-title">${task.name}</div>
+                        ${task.description ? `<div class="kanban-task-description">${task.description}</div>` : ''}
+                        <div class="kanban-task-actions">
+                            ${status !== 'todo' ? `<button class="kanban-action-btn" data-task-id="${task.ticket_id}" data-action="${status === 'in_progress' ? 'todo' : 'in_progress'}">← ${status === 'in_progress' ? 'To Do' : 'In Progress'}</button>` : ''}
+                            ${status !== 'done' ? `<button class="kanban-action-btn" data-task-id="${task.ticket_id}" data-action="${status === 'todo' ? 'in_progress' : 'done'}"> ${status === 'todo' ? 'Start' : 'Complete'} →</button>` : ''}
+                        </div>
                     `;
-                    container.appendChild(taskItem);
+                    container.appendChild(taskCard);
                 });
 
-                // Add delete event listeners
-                document.querySelectorAll('.delete-task-btn').forEach(btn => {
+                // Add event listeners for action buttons
+                container.querySelectorAll('.kanban-action-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
-                        const taskKey = e.target.closest('.delete-task-btn').dataset.key;
-                        if (confirm(`Are you sure you want to delete the custom task "${taskKey}"?`)) {
-                            deleteCustomTask(taskKey);
+                        const taskId = e.target.dataset.taskId;
+                        const newStatus = e.target.dataset.action;
+                        updateTaskStatus(taskId, newStatus);
+                    });
+                });
+
+                // Add event listeners for delete buttons
+                container.querySelectorAll('.kanban-task-delete').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const taskId = e.target.closest('.kanban-task-delete').dataset.taskId;
+                        if (confirm(`Are you sure you want to delete task ${taskId}?`)) {
+                            deleteInternalTask(taskId);
                         }
                     });
                 });
             })
             .catch(err => {
-                container.innerHTML = '<p class="error">Failed to load custom tasks.</p>';
-                console.error('Failed to load custom tasks:', err);
+                container.innerHTML = '<div class="kanban-error">Failed to load tasks</div>';
+                console.error(`Failed to load ${status} tasks:`, err);
             });
     }
 
-    function deleteCustomTask(taskKey) {
-        const resultDiv = document.getElementById('delete-result');
-        
-        fetch(`/tasks/${encodeURIComponent(taskKey)}`, {
+    function updateTaskStatus(taskId, newStatus) {
+        fetch(`/tasks/${taskId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        })
+        .then(r => r.json())
+        .then(result => {
+            if (result.error) {
+                showKanbanMessage(`Error: ${result.error}`, 'error');
+            } else {
+                showKanbanMessage(`Task moved to ${newStatus.replace('_', ' ')}`, 'success');
+                loadKanbanBoard();
+                loadTasks(); // Refresh task selector if needed
+            }
+        })
+        .catch(err => {
+            showKanbanMessage('Failed to update task status', 'error');
+            console.error('Status update error:', err);
+        });
+    }
+
+    function deleteInternalTask(taskId) {
+        fetch(`/tasks/${taskId}`, {
             method: 'DELETE'
         })
         .then(r => r.json())
         .then(result => {
             if (result.error) {
-                resultDiv.textContent = `Error: ${result.error}`;
-                resultDiv.className = 'error';
+                showKanbanMessage(`Error: ${result.error}`, 'error');
             } else {
-                resultDiv.textContent = `✓ Task "${taskKey}" deleted successfully`;
-                resultDiv.className = '';
-                // Reload the custom tasks list
-                loadCustomTasks();
-                // Reload the task selector on the switcher page
-                loadTasks();
-                // Auto-hide success message after 3 seconds
-                setTimeout(() => {
-                    resultDiv.textContent = '';
-                }, 3000);
+                showKanbanMessage(`Task ${taskId} deleted`, 'success');
+                loadKanbanBoard();
+                loadTasks(); // Refresh task selector
             }
         })
         .catch(err => {
-            resultDiv.textContent = 'Error: Failed to delete task';
-            resultDiv.className = 'error';
+            showKanbanMessage('Failed to delete task', 'error');
             console.error('Delete error:', err);
         });
     }
 
-    // Expose loadSettings globally
+    function showKanbanMessage(message, type) {
+        const resultDiv = document.getElementById('kanban-result');
+        resultDiv.textContent = message;
+        resultDiv.className = type === 'error' ? 'error' : '';
+        setTimeout(() => {
+            resultDiv.textContent = '';
+            resultDiv.className = '';
+        }, 3000);
+    }
+
+
+    // Expose functions globally
     window.loadSettings = loadSettings;
+    window.loadKanbanBoard = loadKanbanBoard;
 });
 
