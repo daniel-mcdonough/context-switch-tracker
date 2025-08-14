@@ -14,8 +14,8 @@
                 .attr("id", "calendar-grid");
         }
         
-        const margin = { top: 40, right: 20, bottom: 60, left: 30 };
-        const cellSize = 54;
+        const margin = { top: 40, right: 15, bottom: 60, left: 25 };
+        const cellSize = 46;
         const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
         Promise.all([
@@ -61,7 +61,7 @@
                 .attr("x", (d, i) => i * cellSize + cellSize / 2)
                 .attr("y", -10)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "14px")
+                .attr("font-size", "12px")
                 .attr("font-weight", "600")
                 .attr("fill", "#64748b")
                 .text(d => d);
@@ -156,7 +156,7 @@
                 .attr("y", cellSize / 2)
                 .attr("dy", "0.35em")
                 .attr("text-anchor", "middle")
-                .attr("font-size", "13px")
+                .attr("font-size", "12px")
                 .attr("font-weight", d => d.isToday ? "bold" : "normal")
                 .attr("fill", d => {
                     if (!d.inRange) return '#cbd5e1';
@@ -171,7 +171,7 @@
                 .attr("x", cellSize / 2)
                 .attr("y", cellSize - 8)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "11px")
+                .attr("font-size", "10px")
                 .attr("font-weight", "bold")
                 .attr("fill", d => d.count > 5 ? '#ffffff' : '#64748b')
                 .text(d => d.count);
@@ -208,10 +208,10 @@
                 .attr("id", "hours-calendar-grid");
         }
         
-        const margin = { top: 40, right: 20, bottom: 60, left: 30 };
-        const cellSize = 54;
+        const margin = { top: 40, right: 15, bottom: 60, left: 25 };
+        const cellSize = 46;
         const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const weeklyColumnWidth = cellSize * 0.8;
+        const weeklyColumnWidth = cellSize * 0.7;
 
         fetch(`/metrics/hours?view=${view}`)
         .then(r => r.json())
@@ -238,7 +238,7 @@
             const totalCells = totalDays + firstDayOffset;
             const numWeeks = Math.ceil(totalCells / 7);
             
-            const width = 7 * cellSize + weeklyColumnWidth + 10 + margin.left + margin.right;
+            const width = 7 * cellSize + weeklyColumnWidth + 5 + margin.left + margin.right;
             const height = numWeeks * cellSize + margin.top + margin.bottom;
             svg.attr("width", width).attr("height", height);
 
@@ -253,7 +253,7 @@
                 .attr("x", (d, i) => i * cellSize + cellSize / 2)
                 .attr("y", -10)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "14px")
+                .attr("font-size", "12px")
                 .attr("font-weight", "600")
                 .attr("fill", "#64748b")
                 .text(d => d);
@@ -261,10 +261,10 @@
             // Add weekly total header
             g.append("text")
                 .attr("class", "day-header")
-                .attr("x", 7 * cellSize + 5 + weeklyColumnWidth / 2)
+                .attr("x", 7 * cellSize + 3 + weeklyColumnWidth / 2)
                 .attr("y", -10)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "14px")
+                .attr("font-size", "12px")
                 .attr("font-weight", "600")
                 .attr("fill", "#64748b")
                 .text("Week");
@@ -373,7 +373,7 @@
                 .attr("y", cellSize / 2)
                 .attr("dy", "0.35em")
                 .attr("text-anchor", "middle")
-                .attr("font-size", "13px")
+                .attr("font-size", "12px")
                 .attr("font-weight", d => d.isToday ? "bold" : "normal")
                 .attr("fill", d => {
                     if (!d.inRange) return '#cbd5e1';
@@ -388,7 +388,7 @@
                 .attr("x", cellSize / 2)
                 .attr("y", cellSize - 8)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "11px")
+                .attr("font-size", "10px")
                 .attr("font-weight", "bold")
                 .attr("fill", d => d.hours >= 6.5 ? '#ffffff' : '#22c55e')
                 .text(d => d.hours + 'h');
@@ -420,7 +420,7 @@
                 .data(weeklyTotals)
                 .enter().append("g")
                 .attr("class", "week-total")
-                .attr("transform", d => `translate(${7 * cellSize + 5}, ${d.week * cellSize})`);
+                .attr("transform", d => `translate(${7 * cellSize + 3}, ${d.week * cellSize})`);
 
             weeklyCells.append("rect")
                 .attr("width", weeklyColumnWidth)
@@ -455,7 +455,7 @@
                 .attr("y", cellSize / 2)
                 .attr("dy", "0.35em")
                 .attr("text-anchor", "middle")
-                .attr("font-size", "11px")
+                .attr("font-size", "10px")
                 .attr("font-weight", "bold")
                 .attr("fill", d => d.total >= 30 ? '#ffffff' : '#1e293b')
                 .text(d => d.total + 'h');
@@ -474,10 +474,10 @@
                 .attr("id", "aw-calendar-grid");
         }
         
-        const margin = { top: 40, right: 20, bottom: 60, left: 30 };
-        const cellSize = 54;
+        const margin = { top: 40, right: 15, bottom: 60, left: 25 };
+        const cellSize = 46;
         const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const weeklyColumnWidth = cellSize * 0.8;
+        const weeklyColumnWidth = cellSize * 0.7;
 
         fetch(`/metrics/activitywatch-hours?view=${view}`)
         .then(r => r.json())
@@ -488,7 +488,7 @@
                     .attr("x", 200)
                     .attr("y", 50)
                     .attr("text-anchor", "middle")
-                    .attr("font-size", "14px")
+                    .attr("font-size", "12px")
                     .attr("fill", "#6b7280")
                     .text("ActivityWatch not available");
                 return;
@@ -514,7 +514,7 @@
             const totalCells = totalDays + firstDayOffset;
             const numWeeks = Math.ceil(totalCells / 7);
             
-            const width = 7 * cellSize + weeklyColumnWidth + 10 + margin.left + margin.right;
+            const width = 7 * cellSize + weeklyColumnWidth + 5 + margin.left + margin.right;
             const height = numWeeks * cellSize + margin.top + margin.bottom;
             svg.attr("width", width).attr("height", height);
 
@@ -529,7 +529,7 @@
                 .attr("x", (d, i) => i * cellSize + cellSize / 2)
                 .attr("y", -10)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "14px")
+                .attr("font-size", "12px")
                 .attr("font-weight", "600")
                 .attr("fill", "#64748b")
                 .text(d => d);
@@ -537,10 +537,10 @@
             // Add weekly total header
             g.append("text")
                 .attr("class", "day-header")
-                .attr("x", 7 * cellSize + 5 + weeklyColumnWidth / 2)
+                .attr("x", 7 * cellSize + 3 + weeklyColumnWidth / 2)
                 .attr("y", -10)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "14px")
+                .attr("font-size", "12px")
                 .attr("font-weight", "600")
                 .attr("fill", "#64748b")
                 .text("Week");
@@ -649,7 +649,7 @@
                 .attr("y", cellSize / 2)
                 .attr("dy", "0.35em")
                 .attr("text-anchor", "middle")
-                .attr("font-size", "13px")
+                .attr("font-size", "12px")
                 .attr("font-weight", d => d.isToday ? "bold" : "normal")
                 .attr("fill", d => {
                     if (!d.inRange) return '#cbd5e1';
@@ -664,7 +664,7 @@
                 .attr("x", cellSize / 2)
                 .attr("y", cellSize - 8)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "11px")
+                .attr("font-size", "10px")
                 .attr("font-weight", "bold")
                 .attr("fill", d => d.hours >= 6.5 ? '#ffffff' : '#3b82f6')
                 .text(d => d.hours + 'h');
@@ -696,7 +696,7 @@
                 .data(weeklyTotals)
                 .enter().append("g")
                 .attr("class", "week-total")
-                .attr("transform", d => `translate(${7 * cellSize + 5}, ${d.week * cellSize})`);
+                .attr("transform", d => `translate(${7 * cellSize + 3}, ${d.week * cellSize})`);
 
             weeklyCells.append("rect")
                 .attr("width", weeklyColumnWidth)
@@ -731,7 +731,7 @@
                 .attr("y", cellSize / 2)
                 .attr("dy", "0.35em")
                 .attr("text-anchor", "middle")
-                .attr("font-size", "11px")
+                .attr("font-size", "10px")
                 .attr("font-weight", "bold")
                 .attr("fill", d => d.total >= 30 ? '#ffffff' : '#1e293b')
                 .text(d => d.total + 'h');
