@@ -123,14 +123,14 @@
                     </div>
 
                     <div class="form-section">
-                        <h2>Add Custom Task</h2>
-                        <div class="form-group">
-                            <label for="new-key">Task Key:</label>
-                            <input type="text" id="new-key" placeholder="e.g., BREAK" />
-                        </div>
+                        <h2>Create Internal Task</h2>
                         <div class="form-group">
                             <label for="new-name">Task Name:</label>
-                            <input type="text" id="new-name" placeholder="e.g., Coffee break" />
+                            <input type="text" id="new-name" placeholder="e.g., Fix deployment issue" />
+                        </div>
+                        <div class="form-group">
+                            <label for="new-description">Description (optional):</label>
+                            <textarea id="new-description" placeholder="Additional details about the task"></textarea>
                         </div>
                         <div class="form-group">
                             <button id="add-task" class="btn-secondary" style="width: 100%;">
@@ -138,7 +138,7 @@
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
                                 </svg>
-                                Add Task
+                                Create Task
                             </button>
                         </div>
                         <div id="add-result"></div>
@@ -221,10 +221,25 @@
             </div>
             <div id="settings" class="tab-pane" style="display:none">
                 <div class="settings-section">
-                    <h2>Custom Task Management</h2>
-                    <p class="settings-description">Manage your custom tasks. You can delete tasks that are no longer needed.</p>
-                    <div id="custom-tasks-list"></div>
-                    <div id="delete-result"></div>
+                    <h2>Internal Task Kanban Board</h2>
+                    <p class="settings-description">Manage your internal tasks through their lifecycle.</p>
+                    
+                    <div class="kanban-board">
+                        <div class="kanban-column">
+                            <h3>To Do</h3>
+                            <div id="kanban-todo" class="kanban-tasks"></div>
+                        </div>
+                        <div class="kanban-column">
+                            <h3>In Progress</h3>
+                            <div id="kanban-in-progress" class="kanban-tasks"></div>
+                        </div>
+                        <div class="kanban-column">
+                            <h3>Done</h3>
+                            <div id="kanban-done" class="kanban-tasks"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="kanban-result"></div>
                 </div>
                 
                 <div class="settings-section">

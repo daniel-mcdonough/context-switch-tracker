@@ -626,6 +626,81 @@ button[type="submit"]:active, .btn-primary:active {
     line-height: 1.4;
 }
 
+/* Kanban board styles */
+.kanban-board {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+}
+
+.kanban-column {
+    flex: 1;
+    min-width: 250px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+}
+
+.kanban-column h3 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    text-align: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.kanban-tasks {
+    min-height: 200px;
+}
+
+.kanban-task {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.kanban-task:hover {
+    background: var(--surface-hover);
+    border-color: var(--primary-color);
+}
+
+.kanban-task-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.kanban-task-id {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.kanban-task-description {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.3;
+}
+
+.kanban-task-actions {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.kanban-task-actions button {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
 .settings-item {
     display: flex;
     flex-direction: column;

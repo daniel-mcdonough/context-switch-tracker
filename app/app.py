@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, render_template
 from app.models import init_db, SessionLocal, Switch
 from sqlalchemy.exc import IntegrityError
-from app.models import CustomTask, TagPreset
+from app.models import CustomTask, TagPreset, generate_internal_ticket_id
 from app.timew import get_current_task, get_current_summary, switch_task, stop_task
 from app.jira_client import get_assigned_tickets
 from app.activitywatch import get_activitywatch_hours
@@ -106,57 +106,67 @@ def stop_current():
 @app.route("/tasks", methods=["GET"])
 def all_tasks():
     """
-    Return a combined list of Jira tickets and custom tasks.
+    Return a combined list of Jira tickets and active internal tasks.
     """
     db = SessionLocal()
-    custom = db.query(CustomTask).all()
+    # Only get active internal tasks (not completed)
+    active_internal = db.query(CustomTask).filter(CustomTask.status.in_(["todo", "in_progress"])).all()
     db.close()
     jira = get_assigned_tickets()  # list of (key, summary)
     
-    # For custom tasks, use full identifier if they have names, otherwise just the key
-    custom_tasks = []
-    for t in custom:
-        if t.name:
-            # Use "KEY: Name" as the full identifier
-            full_key = f"{t.key}: {t.name}"
-            custom_tasks.append((full_key, ""))  # Empty summary since name is in key
-        else:
-            # Just use key if no name provided
-            custom_tasks.append((t.key, ""))
+    # For internal tasks, use ticket_id and name
+    internal_tasks = []
+    for t in active_internal:
+        # Use ticket_id as key and name as summary
+        internal_tasks.append((t.ticket_id, t.name))
     
-    combined = [(k, s) for k, s in jira] + custom_tasks
+    combined = [(k, s) for k, s in jira] + internal_tasks
     return jsonify([{"key": k, "summary": s} for k, s in combined]), 200
 
 @app.route("/tasks", methods=["POST"])
-def add_custom_task():
+def add_internal_task():
     """
-    Add a new custom task. Expects JSON {"key": "BREAK", "name": "Coffee break"}.
-    Multiple tasks can now have the same key with different names.
+    Create a new internal task. Expects JSON {"name": "Fix deployment", "description": "Optional details"}.
+    Generates auto ticket ID like INT-001.
     """
     data = request.get_json(force=True)
-    key = data.get("key")
-    name = data.get("name", "")
-    if not key:
-        return jsonify({"error": "Missing 'key'"}), 400
+    name = data.get("name")
+    description = data.get("description", "")
+    if not name:
+        return jsonify({"error": "Missing 'name'"}), 400
+    
+    # Generate internal ticket ID
+    ticket_id = generate_internal_ticket_id()
+    
     db = SessionLocal()
-    task = CustomTask(key=key, name=name)
+    task = CustomTask(
+        ticket_id=ticket_id,
+        name=name,
+        description=description,
+        status="todo"
+    )
     db.add(task)
     try:
         db.commit()
+        db.close()
+        return jsonify({
+            "ticket_id": ticket_id,
+            "name": name,
+            "description": description,
+            "status": "todo"
+        }), 201
     except IntegrityError:
         db.rollback()
         db.close()
         return jsonify({"error": "Database error"}), 500
-    db.close()
-    return jsonify({"key": key, "name": name}), 201
 
-@app.route("/tasks/<task_key>", methods=["DELETE"])
-def delete_custom_task(task_key):
+@app.route("/tasks/<task_id>", methods=["DELETE"])
+def delete_internal_task(task_id):
     """
-    Delete a custom task by key.
+    Delete an internal task by ticket ID.
     """
     db = SessionLocal()
-    task = db.query(CustomTask).filter(CustomTask.key == task_key).first()
+    task = db.query(CustomTask).filter(CustomTask.ticket_id == task_id).first()
 
     if not task:
         db.close()
@@ -166,18 +176,61 @@ def delete_custom_task(task_key):
     db.commit()
     db.close()
 
-    return jsonify({"message": f"Task {task_key} deleted successfully"}), 200
+    return jsonify({"message": f"Task {task_id} deleted successfully"}), 200
 
-@app.route("/tasks/custom", methods=["GET"])
-def get_custom_tasks():
+@app.route("/tasks/<task_id>/status", methods=["PUT"])
+def update_task_status(task_id):
     """
-    Return only custom tasks for management.
+    Update task status for kanban workflow.
+    Expects JSON {"status": "todo|in_progress|done"}
     """
+    data = request.get_json(force=True)
+    new_status = data.get("status")
+    
+    if new_status not in ["todo", "in_progress", "done"]:
+        return jsonify({"error": "Invalid status. Must be: todo, in_progress, done"}), 400
+    
     db = SessionLocal()
-    custom_tasks = db.query(CustomTask).order_by(CustomTask.key).all()
+    task = db.query(CustomTask).filter(CustomTask.ticket_id == task_id).first()
+    
+    if not task:
+        db.close()
+        return jsonify({"error": "Task not found"}), 404
+    
+    task.status = new_status
+    db.commit()
+    db.close()
+    
+    return jsonify({
+        "ticket_id": task_id,
+        "status": new_status,
+        "message": f"Task {task_id} moved to {new_status}"
+    }), 200
+
+@app.route("/tasks/internal", methods=["GET"])
+def get_internal_tasks():
+    """
+    Return internal tasks grouped by status for kanban board.
+    """
+    status_filter = request.args.get("status")  # Optional filter by status
+    
+    db = SessionLocal()
+    query = db.query(CustomTask).order_by(CustomTask.created_date.desc())
+    
+    if status_filter:
+        query = query.filter(CustomTask.status == status_filter)
+    
+    internal_tasks = query.all()
     db.close()
 
-    result = [{"key": task.key, "name": task.name or ""} for task in custom_tasks]
+    result = [{
+        "ticket_id": task.ticket_id,
+        "name": task.name,
+        "description": task.description,
+        "status": task.status,
+        "created_date": task.created_date.isoformat() if task.created_date else None
+    } for task in internal_tasks]
+    
     return jsonify(result), 200
 
 @app.route("/tags/presets", methods=["GET"])
