@@ -360,6 +360,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (window.loadHoursCalendar) {
             loadHoursCalendar(view);
         }
+        // Render the ActivityWatch calendar
+        if (window.loadActivityWatchCalendar) {
+            loadActivityWatchCalendar(view);
+        }
         // Update the raw switch log
         const logEl = document.getElementById("switch-log");
         logEl.innerHTML = "";

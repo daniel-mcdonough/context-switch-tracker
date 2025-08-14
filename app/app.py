@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from app.models import CustomTask, TagPreset
 from app.timew import get_current_task, get_current_summary, switch_task, stop_task
 from app.jira_client import get_assigned_tickets
+from app.activitywatch import get_activitywatch_hours
 from datetime import date, timedelta
 from sqlalchemy import func, desc
 import json
@@ -691,6 +692,24 @@ def get_estimated_hours():
 
     db.close()
     return jsonify(out), 200
+
+@app.route("/metrics/activitywatch-hours", methods=["GET"])
+def get_activitywatch_hours_endpoint():
+    """
+    Returns a list of {date: 'YYYY-MM-DD', hours: N} for either
+    the current week (Mon→Sun) or the current month, based on the
+    'view' query parameter ('week' or 'month').
+    Gets actual laptop activity time from ActivityWatch excluding AFK periods.
+    """
+    view = request.args.get("view", "week")
+    
+    try:
+        hours_data = get_activitywatch_hours(view)
+        return jsonify(hours_data), 200
+    except Exception as e:
+        # If ActivityWatch is not available, return empty data
+        print(f"ActivityWatch error: {e}")
+        return jsonify([]), 200
 
 if __name__ == "__main__":
     # Default host/port; override with FLASK_RUN_HOST/PORT if desired
