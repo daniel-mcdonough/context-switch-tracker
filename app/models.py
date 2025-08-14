@@ -43,8 +43,7 @@ class CustomTask(Base):
     __tablename__ = "custom_tasks"
 
     id = Column(Integer, primary_key=True, index=True)
-    key = Column(String, unique=True, nullable=False)
-    name = Column(String, nullable=True)
+    name = Column(String, unique=True, nullable=False)
 
 
 

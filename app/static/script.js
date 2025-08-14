@@ -82,7 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const currentEl = document.getElementById("current-task");
     const ticketSel = document.getElementById("ticket-select");
     const noteInput = document.getElementById("note");
-    const categoryIn = document.getElementById("category");
     const isSwitchCheckbox = document.getElementById("is-switch");
     const resultDiv = document.getElementById("result");
     const form = document.getElementById("switch-form");
@@ -229,7 +228,6 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
         const to_task = ticketSel.value;
         const note = noteInput.value.trim();
-        const category = categoryIn.value.trim();
         const is_switch = isSwitchCheckbox.checked;
         const tags = selectedTags;
         if (!to_task) return alert("Please select a ticket.");
@@ -237,7 +235,7 @@ document.addEventListener("DOMContentLoaded", () => {
         fetch("/switch", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ to_task, note, category, is_switch, tags })
+            body: JSON.stringify({ to_task, note, is_switch, tags })
         })
             .then(r => r.json())
             .then(json => {
@@ -249,7 +247,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     resultDiv.className = "";
                     // clear inputs
                     noteInput.value = "";
-                    categoryIn.value = "";
                     ticketSel.value = "";
                     selectedTags = [];
                     renderSelectedTags();

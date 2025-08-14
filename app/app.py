@@ -47,12 +47,11 @@ def tickets():
 def do_switch():
     """
     Switch tasks: stop current, start new, and log the switch.
-    Expects JSON: {"to_task": "ABC-123", "note": "...", "category": "bug", "tags": ["meeting:standup", "priority:high"]}
+    Expects JSON: {"to_task": "ABC-123", "note": "...", "tags": ["meeting:standup", "priority:high"]}
     """
     data = request.get_json(force=True)
     to_task = data.get("to_task")
     note = data.get("note")
-    category = data.get("category")
     tags = data.get("tags", [])
     is_switch = data.get("is_switch", True)
 
@@ -75,7 +74,7 @@ def do_switch():
         from_task=from_task,
         to_task=new_task,
         note=note,
-        category=category,  # Keep for backward compatibility
+        category=None,  # No longer used, kept for backward compatibility
         tags=tags_json,
         is_switch=is_switch
     )
@@ -86,7 +85,6 @@ def do_switch():
     return jsonify({"from": from_task,
         "to": new_task,
         "note": note,
-        "category": category,
         "tags": tags}), 200
 
 @app.route("/stop", methods=["POST"])
@@ -114,13 +112,26 @@ def all_tasks():
     custom = db.query(CustomTask).all()
     db.close()
     jira = get_assigned_tickets()  # list of (key, summary)
-    combined = [(k, s) for k, s in jira] + [(t.key, t.name or "") for t in custom]
+    
+    # For custom tasks, use full identifier if they have names, otherwise just the key
+    custom_tasks = []
+    for t in custom:
+        if t.name:
+            # Use "KEY: Name" as the full identifier
+            full_key = f"{t.key}: {t.name}"
+            custom_tasks.append((full_key, ""))  # Empty summary since name is in key
+        else:
+            # Just use key if no name provided
+            custom_tasks.append((t.key, ""))
+    
+    combined = [(k, s) for k, s in jira] + custom_tasks
     return jsonify([{"key": k, "summary": s} for k, s in combined]), 200
 
 @app.route("/tasks", methods=["POST"])
 def add_custom_task():
     """
     Add a new custom task. Expects JSON {"key": "BREAK", "name": "Coffee break"}.
+    Multiple tasks can now have the same key with different names.
     """
     data = request.get_json(force=True)
     key = data.get("key")
@@ -135,7 +146,7 @@ def add_custom_task():
     except IntegrityError:
         db.rollback()
         db.close()
-        return jsonify({"error": "Task key already exists"}), 409
+        return jsonify({"error": "Database error"}), 500
     db.close()
     return jsonify({"key": key, "name": name}), 201
 
