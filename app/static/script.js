@@ -1,4 +1,56 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // Quarter countdown functionality
+    function calculateQuarterCountdown() {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth(); // 0-based
+        
+        // US business quarters: Q1 (Jan-Mar), Q2 (Apr-Jun), Q3 (Jul-Sep), Q4 (Oct-Dec)
+        let quarterEndMonth;
+        if (currentMonth <= 2) { // Q1: Jan-Mar
+            quarterEndMonth = 2; // March
+        } else if (currentMonth <= 5) { // Q2: Apr-Jun
+            quarterEndMonth = 5; // June
+        } else if (currentMonth <= 8) { // Q3: Jul-Sep
+            quarterEndMonth = 8; // September
+        } else { // Q4: Oct-Dec
+            quarterEndMonth = 11; // December
+        }
+        
+        // Last day of the quarter
+        const quarterEnd = new Date(currentYear, quarterEndMonth + 1, 0); // +1 month, day 0 = last day of previous month
+        
+        // Calculate days difference
+        const diffTime = quarterEnd.getTime() - now.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        return Math.max(0, diffDays);
+    }
+    
+    function updateQuarterCountdown() {
+        const days = calculateQuarterCountdown();
+        const countdownElement = document.getElementById('countdown-days');
+        if (countdownElement) {
+            countdownElement.textContent = days;
+        }
+    }
+    
+    // Initialize countdown
+    updateQuarterCountdown();
+    
+    // Update countdown daily at midnight
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    const msUntilMidnight = tomorrow.getTime() - now.getTime();
+    
+    setTimeout(() => {
+        updateQuarterCountdown();
+        // Then update every 24 hours
+        setInterval(updateQuarterCountdown, 24 * 60 * 60 * 1000);
+    }, msUntilMidnight);
+
     // Theme management
     const themeToggle = document.getElementById('theme-toggle');
     const themeLabel = document.getElementById('theme-label');

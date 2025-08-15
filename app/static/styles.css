@@ -1198,6 +1198,46 @@ button[type="submit"]:active, .btn-primary:active {
     background: var(--text-muted);
 }
 
+/* Quarter Countdown */
+.quarter-countdown {
+    text-align: center;
+    padding: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    min-width: 80px;
+}
+
+.countdown-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    line-height: 1;
+}
+
+.countdown-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    line-height: 1;
+}
+
+/* Theme-specific countdown styling */
+[data-theme="win95"] .quarter-countdown {
+    background: var(--surface);
+    border: 2px inset var(--border);
+    border-radius: 0;
+}
+
+[data-theme="win95"] .countdown-value {
+    color: var(--text-primary);
+    font-family: "MS Sans Serif", sans-serif;
+}
+
+[data-theme="miku"] .countdown-value {
+    color: #39c5bb;
+}
+
 @media (max-width: 640px) {
     .container {
         padding: 0.5rem;
@@ -1209,5 +1249,18 @@ button[type="submit"]:active, .btn-primary:active {
     
     .app-title {
         font-size: 1.25rem;
+    }
+    
+    .quarter-countdown {
+        min-width: 70px;
+        padding: 0.375rem;
+    }
+    
+    .countdown-value {
+        font-size: 1.25rem;
+    }
+    
+    .countdown-label {
+        font-size: 0.625rem;
     }
 }
