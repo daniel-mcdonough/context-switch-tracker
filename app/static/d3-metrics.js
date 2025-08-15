@@ -258,7 +258,7 @@
                 .attr("fill", "#64748b")
                 .text(d => d);
 
-            // Add weekly total header
+            // Add weekly average header
             g.append("text")
                 .attr("class", "day-header")
                 .attr("x", 7 * cellSize + 3 + weeklyColumnWidth / 2)
@@ -267,7 +267,7 @@
                 .attr("font-size", "12px")
                 .attr("font-weight", "600")
                 .attr("fill", "#64748b")
-                .text("Week");
+                .text("Avg/Day");
 
             // Create tooltip
             let tooltip = d3.select("body").select("#hours-tooltip");
@@ -299,19 +299,26 @@
                 currentDate.setDate(currentDate.getDate() + 1);
             }
 
-            // Calculate weekly totals
+            // Calculate weekly totals (excluding weekends)
             const weeklyTotals = [];
             for (let week = 0; week < numWeeks; week++) {
                 let weekTotal = 0;
+                let weekdaysTotal = 0;
                 for (let day = 0; day < 7; day++) {
                     const index = week * 7 + day;
                     if (index < allDates.length) {
-                        weekTotal += allDates[index].hours;
+                        const hours = allDates[index].hours;
+                        weekTotal += hours;
+                        // Exclude weekends from weekdays total (day 0 = Sunday, day 6 = Saturday)
+                        if (day !== 0 && day !== 6) {
+                            weekdaysTotal += hours;
+                        }
                     }
                 }
                 weeklyTotals.push({
                     week: week,
-                    total: Math.round(weekTotal * 10) / 10 // Round to 1 decimal
+                    total: Math.round(weekTotal * 10) / 10, // Total including weekends
+                    weekdaysTotal: Math.round(weekdaysTotal * 10) / 10 // Total excluding weekends
                 });
             }
 
@@ -432,6 +439,7 @@
                 .attr("stroke-width", 1)
                 .style("cursor", "pointer")
                 .on("mouseover", (event, d) => {
+                    const avgHours = d.weekdaysTotal ? d.weekdaysTotal / 5 : d.total / 5;
                     let assessment = 'Light week';
                     if (d.total >= 40) assessment = 'Heavy week';
                     else if (d.total >= 30) assessment = 'Busy week';
@@ -439,6 +447,7 @@
                     
                     let html = `<strong>Week ${d.week + 1}</strong><br>`;
                     html += `Total hours: ${d.total}h<br>`;
+                    html += `Average (weekdays): ${avgHours.toFixed(1)}h/day<br>`;
                     html += `<span style="font-size: 0.75rem">${assessment}</span>`;
                     
                     tooltip.html(html)
@@ -458,7 +467,10 @@
                 .attr("font-size", "10px")
                 .attr("font-weight", "bold")
                 .attr("fill", d => d.total >= 30 ? '#ffffff' : '#1e293b')
-                .text(d => d.total + 'h');
+                .text(d => {
+                    const avgHours = d.weekdaysTotal ? d.weekdaysTotal / 5 : d.total / 5;
+                    return avgHours.toFixed(1) + 'h/d';
+                });
         });
     }
 
@@ -575,19 +587,26 @@
                 currentDate.setDate(currentDate.getDate() + 1);
             }
 
-            // Calculate weekly totals
+            // Calculate weekly totals (excluding weekends)
             const weeklyTotals = [];
             for (let week = 0; week < numWeeks; week++) {
                 let weekTotal = 0;
+                let weekdaysTotal = 0;
                 for (let day = 0; day < 7; day++) {
                     const index = week * 7 + day;
                     if (index < allDates.length) {
-                        weekTotal += allDates[index].hours;
+                        const hours = allDates[index].hours;
+                        weekTotal += hours;
+                        // Exclude weekends from weekdays total (day 0 = Sunday, day 6 = Saturday)
+                        if (day !== 0 && day !== 6) {
+                            weekdaysTotal += hours;
+                        }
                     }
                 }
                 weeklyTotals.push({
                     week: week,
-                    total: Math.round(weekTotal * 10) / 10 // Round to 1 decimal
+                    total: Math.round(weekTotal * 10) / 10, // Total including weekends
+                    weekdaysTotal: Math.round(weekdaysTotal * 10) / 10 // Total excluding weekends
                 });
             }
 
@@ -734,8 +753,84 @@
                 .attr("font-size", "10px")
                 .attr("font-weight", "bold")
                 .attr("fill", d => d.total >= 30 ? '#ffffff' : '#1e293b')
-                .text(d => d.total + 'h');
+                .text(d => {
+                    const avgHours = d.weekdaysTotal ? d.weekdaysTotal / 5 : d.total / 5;
+                    return avgHours.toFixed(1) + 'h/d';
+                });
+            // Calculate and display monthly statistics
+            calculateActivityWatchMonthlyStats(days, view);
         });
+    }
+
+    function calculateActivityWatchMonthlyStats(days, view) {
+        if (view !== 'month' || !days || days.length === 0) {
+            // Clear stats if not monthly view or no data
+            d3.select("#aw-monthly-avg").text("--");
+            d3.select("#aw-hours-remaining").text("--");
+            return;
+        }
+
+        // Calculate total hours and working days in the month
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        
+        // Get first and last day of current month
+        const firstDay = new Date(currentYear, currentMonth, 1);
+        const lastDay = new Date(currentYear, currentMonth + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        
+        // Calculate weekdays in the month (excluding weekends)
+        let weekdaysInMonth = 0;
+        let weekdaysPassed = 0;
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(currentYear, currentMonth, day);
+            const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+            
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not weekend
+                weekdaysInMonth++;
+                if (day <= today.getDate()) {
+                    weekdaysPassed++;
+                }
+            }
+        }
+        
+        // Calculate total hours worked so far this month
+        const totalHours = days.reduce((sum, day) => sum + (day.hours || 0), 0);
+        
+        // Calculate monthly average (weekdays only)
+        const monthlyAverage = weekdaysPassed > 0 ? totalHours / weekdaysPassed : 0;
+        
+        // Calculate hours needed to reach 6.5h/day goal
+        const goalHoursPerDay = 6.5;
+        const targetTotalHours = weekdaysInMonth * goalHoursPerDay;
+        const hoursRemaining = Math.max(0, targetTotalHours - totalHours);
+        
+        // Update the display
+        const avgElement = d3.select("#aw-monthly-avg");
+        const remainingElement = d3.select("#aw-hours-remaining");
+        
+        avgElement.text(monthlyAverage.toFixed(1) + "h/day");
+        
+        if (hoursRemaining === 0) {
+            remainingElement.text("Goal reached!")
+                .classed("positive", true)
+                .classed("negative", false);
+        } else {
+            remainingElement.text(hoursRemaining.toFixed(1) + "h")
+                .classed("positive", false)
+                .classed("negative", hoursRemaining > (weekdaysInMonth - weekdaysPassed) * 8);
+        }
+        
+        // Color coding for average
+        if (monthlyAverage >= 6.5) {
+            avgElement.classed("positive", true).classed("negative", false);
+        } else if (monthlyAverage < 5.0) {
+            avgElement.classed("positive", false).classed("negative", true);
+        } else {
+            avgElement.classed("positive", false).classed("negative", false);
+        }
     }
 
     // Expose globally for script.js
