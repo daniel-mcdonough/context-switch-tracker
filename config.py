@@ -12,6 +12,7 @@ class Config:
     JIRA_URL = os.getenv("JIRA_URL")
     JIRA_USER = os.getenv("JIRA_USER")
     JIRA_TOKEN = os.getenv("JIRA_TOKEN")
+    JIRA_DISPLAY_NAME = os.getenv("JIRA_DISPLAY_NAME")  # For matching worklogs by name
 
     # Timewarrior
     TIMEWARRIOR_BIN = os.getenv("TIMEWARRIOR_BIN", "timew")

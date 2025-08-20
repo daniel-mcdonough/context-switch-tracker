@@ -5,9 +5,13 @@ from app.models import CustomTask, TagPreset, generate_internal_ticket_id
 from app.timew import get_current_task, get_current_summary, switch_task, stop_task
 from app.jira_client import get_assigned_tickets
 from app.activitywatch import get_activitywatch_hours
-from datetime import date, timedelta
+from app.timesync import get_timewarrior_intervals, get_jira_worklogs, batch_sync_to_jira, get_timewarrior_by_ticket, get_single_ticket_data
+from datetime import date, timedelta, datetime
 from sqlalchemy import func, desc
 import json
+import csv
+from io import StringIO
+from flask import Response
 
 # Initialize database (creates tables if needed)
 init_db()
@@ -19,7 +23,8 @@ def index():
     """
     Serve the main context switcher UI.
     """
-    return render_template("index.html")
+    from config import Config
+    return render_template("index.html", jira_url=Config.JIRA_URL or '')
 
 @app.route("/current", methods=["GET"])
 def current():
@@ -774,6 +779,162 @@ def get_activitywatch_hours_endpoint():
         # If ActivityWatch is not available, return empty data
         print(f"ActivityWatch error: {e}")
         return jsonify([]), 200
+
+@app.route("/export/switches", methods=["GET"])
+def export_switches():
+    """
+    Export all switch history as CSV file.
+    """
+    db = SessionLocal()
+    
+    # Get all switches ordered by timestamp (newest first)
+    switches = (
+        db.query(Switch)
+        .order_by(Switch.timestamp.desc())
+        .all()
+    )
+    db.close()
+    
+    # Create CSV in memory
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write CSV header
+    writer.writerow([
+        'Timestamp',
+        'From Task', 
+        'To Task',
+        'Note',
+        'Tags',
+        'Is Context Switch',
+        'Category'
+    ])
+    
+    # Write data rows
+    for switch in switches:
+        tags_str = ''
+        if switch.tags:
+            try:
+                tags_list = json.loads(switch.tags)
+                tags_str = ', '.join(tags_list)
+            except json.JSONDecodeError:
+                tags_str = switch.tags
+        
+        writer.writerow([
+            switch.timestamp.astimezone().isoformat(),
+            switch.from_task or '',
+            switch.to_task or '',
+            switch.note or '',
+            tags_str,
+            'Yes' if switch.is_switch else 'No',
+            switch.category or ''
+        ])
+    
+    # Create response with CSV content
+    csv_content = output.getvalue()
+    output.close()
+    
+    response = Response(
+        csv_content,
+        mimetype='text/csv',
+        headers={
+            'Content-Disposition': 'attachment; filename=context_switch_history.csv'
+        }
+    )
+    
+    return response
+
+@app.route("/timesync/intervals", methods=["GET"])
+def get_timesync_intervals():
+    """
+    Get Timewarrior intervals that can be synced to JIRA.
+    """
+    try:
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
+        
+        if not start_date or not end_date:
+            # Default to last 7 days
+            end = datetime.now()
+            start = end - timedelta(days=7)
+            start_date = start.strftime('%Y-%m-%d')
+            end_date = end.strftime('%Y-%m-%d')
+        
+        intervals = get_timewarrior_intervals(start_date, end_date)
+        
+        # For each interval, check if worklog already exists
+        for interval in intervals:
+            worklogs = get_jira_worklogs(interval['ticket'], interval['start'])
+            interval['has_worklog'] = len(worklogs) > 0
+            interval['existing_worklogs'] = worklogs
+        
+        return jsonify(intervals), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/timesync/tickets", methods=["GET"])
+def get_timesync_tickets():
+    """
+    Get Timewarrior entries for a specific ticket with hour comparisons.
+    """
+    try:
+        ticket_id = request.args.get('ticket_id', '')
+        
+        if not ticket_id:
+            return jsonify({"error": "ticket_id is required"}), 400
+        
+        # Get data for specific ticket (defaults to past 3 months)
+        ticket_data = get_single_ticket_data(ticket_id)
+        tickets_list = [ticket_data]
+        
+        return jsonify(tickets_list), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/timesync/worklogs/<ticket_id>", methods=["GET"])
+def get_ticket_worklogs(ticket_id):
+    """
+    Get existing JIRA worklogs for a specific ticket.
+    """
+    try:
+        start_date = request.args.get('start_date', None)
+        worklogs = get_jira_worklogs(ticket_id, start_date)
+        return jsonify(worklogs), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/timesync/sync", methods=["POST"])
+def sync_intervals():
+    """
+    Sync selected Timewarrior intervals to JIRA.
+    """
+    try:
+        data = request.json
+        intervals = data.get('intervals', [])
+        
+        if not intervals:
+            return jsonify({"error": "No intervals provided"}), 400
+        
+        results = batch_sync_to_jira(intervals)
+        
+        # Count successes and failures
+        success_count = sum(1 for r in results if r['success'])
+        failure_count = len(results) - success_count
+        
+        return jsonify({
+            "results": results,
+            "summary": {
+                "total": len(results),
+                "success": success_count,
+                "failed": failure_count
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     # Default host/port; override with FLASK_RUN_HOST/PORT if desired

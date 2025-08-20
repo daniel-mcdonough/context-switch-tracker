@@ -8,8 +8,13 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/d3-metrics.css">
+    <script>
+        // Pass JIRA URL to frontend (if available)
+        window.JIRA_BASE_URL = '{{ jira_url }}';
+    </script>
     <script defer src="/static/d3-metrics.js"></script>
     <script defer src="/static/analytics.js"></script>
+    <script defer src="/static/timesync.js"></script>
     <script defer src="/static/script.js"></script>
 </head>
 
@@ -69,6 +74,13 @@
                     <path d="M15 3v18"></path>
                 </svg>
                 Kanban
+            </li>
+            <li data-tab="timesync">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline; vertical-align: -2px; margin-right: 4px;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                Time Sync
             </li>
             <li data-tab="settings">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline; vertical-align: -2px; margin-right: 4px;">
@@ -257,6 +269,35 @@
                     <div id="kanban-result"></div>
                 </div>
             </div>
+            <div id="timesync" class="tab-pane" style="display:none">
+                <div class="time-sync-container">
+                    <h2>Time Sync to JIRA</h2>
+                    <p class="sync-description">Enter a JIRA ticket ID to compare and sync your Timewarrior hours (searches past 3 months)</p>
+                    
+                    <div class="sync-controls">
+                        <div class="ticket-input-group">
+                            <label>JIRA Ticket ID:</label>
+                            <input type="text" id="ticket-id-input" placeholder="e.g., PROJECT-123" autofocus />
+                            <button id="load-ticket" class="btn-primary">Load Ticket</button>
+                        </div>
+                    </div>
+
+                    <div id="tickets-view" class="tickets-view" style="display:none;">
+                        <h3>Tickets with Time Entries</h3>
+                        <div class="tickets-summary">
+                            <span id="tickets-count"></span>
+                            <button id="sync-all-tickets" class="btn-success" style="float: right;">Sync All Selected</button>
+                        </div>
+                        <div id="tickets-list" class="tickets-list"></div>
+                    </div>
+
+                    <div id="sync-results" class="sync-results" style="display:none;">
+                        <h3>Sync Results</h3>
+                        <div id="results-content"></div>
+                    </div>
+                </div>
+            </div>
+
             <div id="settings" class="tab-pane" style="display:none">
                 <div class="settings-section">
                     <h2>Application Settings</h2>

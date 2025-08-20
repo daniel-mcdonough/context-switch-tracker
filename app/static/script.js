@@ -446,6 +446,32 @@ document.addEventListener("DOMContentLoaded", () => {
     // Settings page functionality
     function loadSettings() {
         // Theme selector is now handled by the main theme management code above
+        
+        // Export data functionality
+        const exportBtn = document.getElementById("export-data-btn");
+        if (exportBtn) {
+            exportBtn.addEventListener("click", () => {
+                // Create a temporary link to download the CSV file
+                const link = document.createElement("a");
+                link.href = "/export/switches";
+                link.download = "context_switch_history.csv";
+                
+                // Trigger the download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Show feedback
+                const originalText = exportBtn.textContent;
+                exportBtn.textContent = "Downloading...";
+                exportBtn.disabled = true;
+                
+                setTimeout(() => {
+                    exportBtn.textContent = originalText;
+                    exportBtn.disabled = false;
+                }, 2000);
+            });
+        }
     }
 
     function loadKanbanBoard() {
