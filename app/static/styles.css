@@ -1985,4 +1985,12 @@ button[type="submit"]:active, .btn-primary:active {
     height: 12px;
     border-radius: 2px;
 }
+
+.entry-note {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+    font-style: italic;
+    opacity: 0.9;
+}
 }

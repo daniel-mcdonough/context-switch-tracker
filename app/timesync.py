@@ -76,15 +76,38 @@ def get_timewarrior_intervals(start_date, end_date):
                     if duration_seconds < 60:
                         continue
                     
-                    jira_intervals.append({
+                    interval_data = {
                         'id': interval.get('id', 0),
                         'start': start.replace(tzinfo=None).isoformat(),
                         'end': end.replace(tzinfo=None).isoformat(),
                         'ticket': jira_tags[0],  # Use first JIRA ticket tag
                         'tags': interval['tags'],
                         'duration_seconds': duration_seconds,
-                        'duration_formatted': format_duration(duration_seconds)
-                    })
+                        'duration_formatted': format_duration(duration_seconds),
+                        'note': None  # Will be populated from Switch records
+                    }
+                    
+                    # Try to find a matching Switch record to get the note
+                    try:
+                        from app.models import SessionLocal, Switch
+                        from datetime import timedelta
+                        db = SessionLocal()
+                        
+                        # Look for a Switch record around this time (within 1 minute)
+                        switch = db.query(Switch).filter(
+                            Switch.to_task == jira_tags[0],
+                            Switch.timestamp >= start - timedelta(minutes=1),
+                            Switch.timestamp <= start + timedelta(minutes=1)
+                        ).first()
+                        
+                        if switch and switch.note:
+                            interval_data['note'] = switch.note
+                        
+                        db.close()
+                    except Exception:
+                        pass  # Silently ignore if we can't get the note
+                    
+                    jira_intervals.append(interval_data)
                 except Exception as parse_error:
                     continue
         
@@ -440,9 +463,16 @@ def sync_interval_to_jira(ticket_id, start_time, duration_seconds, comment=None)
         
         jira = get_jira_client()
         
-        # Format comment
-        if not comment:
-            comment = f"Time tracked via Timewarrior sync"
+        # Format comment - use provided note or default message
+        if comment:
+            # If we have a note from the Switch record, use it
+            comment = comment.strip()
+            # Add a footer to indicate it was synced
+            if not comment.endswith('.'):
+                comment += '.'
+            comment += " (Synced from Timewarrior)"
+        else:
+            comment = "Time tracked via Timewarrior sync"
         
         # Add worklog
         # Convert start_time to datetime object - handle timezone properly
@@ -477,13 +507,43 @@ def batch_sync_to_jira(intervals):
     Sync multiple Timewarrior intervals to JIRA.
     Returns list of results.
     """
+    from app.models import SessionLocal, Switch
+    
     results = []
+    db = SessionLocal()
     
     for interval in intervals:
+        # Try to find a matching Switch record to get the note
+        comment = None
+        try:
+            # Parse the start time to match against Switch records
+            start_str = interval['start']
+            if 'T' in start_str:
+                # Convert ISO format to datetime for comparison
+                from datetime import timedelta
+                if start_str.endswith('Z'):
+                    start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                else:
+                    start_dt = datetime.fromisoformat(start_str.replace('T', ' ') if '+' not in start_str and '-' not in start_str.split('T')[-1] else start_str)
+                
+                # Look for a Switch record around this time (within 1 minute)
+                # and with the matching ticket ID
+                switch = db.query(Switch).filter(
+                    Switch.to_task == interval['ticket'],
+                    Switch.timestamp >= start_dt - timedelta(minutes=1),
+                    Switch.timestamp <= start_dt + timedelta(minutes=1)
+                ).first()
+                
+                if switch and switch.note:
+                    comment = switch.note
+        except Exception as e:
+            print(f"Warning: Could not lookup note for interval: {e}")
+        
         success, message = sync_interval_to_jira(
             interval['ticket'],
             interval['start'],
-            interval['duration_seconds']
+            interval['duration_seconds'],
+            comment=comment
         )
         
         results.append({
@@ -491,7 +551,9 @@ def batch_sync_to_jira(intervals):
             'start': interval['start'],
             'duration': interval['duration_formatted'],
             'success': success,
-            'message': message
+            'message': message,
+            'comment': comment or 'No note'
         })
     
+    db.close()
     return results

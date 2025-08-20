@@ -81,17 +81,21 @@ function generateTimewarriorEntries(intervals, worklogs = []) {
         const startTime = formatDateTime(interval.start);
         const endTime = formatDateTime(interval.end);
         const duration = formatHours(interval.duration_seconds);
+        const note = interval.note ? interval.note : '';
         
         // Check if this Timewarrior entry has a matching JIRA worklog
         const matchType = findMatchingWorklog(interval, worklogs);
         const matchClass = getMatchClass(matchType);
         const matchIndicator = getMatchIndicator(matchType);
         
+        const titleText = `Start: ${interval.start}, End: ${interval.end}${note ? '\nNote: ' + note : ''}`;
+        
         html += `
-            <div class="entry-item ${matchClass}" title="Start: ${interval.start}, End: ${interval.end}">
+            <div class="entry-item ${matchClass}" title="${titleText.replace(/"/g, '&quot;')}">
                 <div class="entry-time">${startTime} - ${endTime}</div>
                 <div class="entry-duration">${duration}</div>
                 ${matchIndicator}
+                ${note ? '<div class="entry-note" style="font-size: 0.8em; color: var(--text-secondary); margin-top: 0.2rem;">' + note.substring(0, 50) + (note.length > 50 ? '...' : '') + '</div>' : ''}
             </div>
         `;
     });
