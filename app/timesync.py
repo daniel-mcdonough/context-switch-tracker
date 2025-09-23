@@ -93,18 +93,22 @@ def get_timewarrior_intervals(start_date, end_date):
                         from datetime import timedelta
                         db = SessionLocal()
                         
+                        # Convert start time to UTC naive datetime for database comparison
+                        # The database stores UTC times without timezone info
+                        start_utc = start.astimezone(timezone.utc).replace(tzinfo=None)
+                        
                         # Look for a Switch record around this time (within 1 minute)
                         switch = db.query(Switch).filter(
                             Switch.to_task == jira_tags[0],
-                            Switch.timestamp >= start - timedelta(minutes=1),
-                            Switch.timestamp <= start + timedelta(minutes=1)
+                            Switch.timestamp >= start_utc - timedelta(minutes=1),
+                            Switch.timestamp <= start_utc + timedelta(minutes=1)
                         ).first()
                         
                         if switch and switch.note:
                             interval_data['note'] = switch.note
                         
                         db.close()
-                    except Exception:
+                    except Exception as e:
                         pass  # Silently ignore if we can't get the note
                     
                     jira_intervals.append(interval_data)
@@ -168,7 +172,7 @@ def get_single_ticket_data(ticket_id, start_date=None, end_date=None):
     # Get JIRA info
     jira = get_jira_client()
     try:
-        issue = jira.issue(ticket_id, expand='changelog')
+        issue = jira.issue(ticket_id, expand='changelog', fields='summary')
         ticket_data['summary'] = issue.fields.summary
         
         # Get existing worklogs for this period - simplified approach
@@ -263,7 +267,7 @@ def get_timewarrior_by_ticket(start_date, end_date):
         
         # Get ticket summary and existing worklogs
         try:
-            issue = jira.issue(ticket_id)
+            issue = jira.issue(ticket_id, fields='summary')
             data['summary'] = issue.fields.summary
             
             # Get existing worklogs for this period - simplified approach
@@ -475,19 +479,32 @@ def sync_interval_to_jira(ticket_id, start_time, duration_seconds, comment=None)
             comment = "Time tracked via Timewarrior sync"
         
         # Add worklog
-        # Convert start_time to datetime object - handle timezone properly
-        # First check if there's a duplicate timezone suffix (e.g., -0400+00:00)
-        if '+00:00' in start_time and ('-' in start_time[:19] or '+' in start_time[:19]):
-            # Remove the duplicate +00:00 suffix
-            start_time = start_time.replace('+00:00', '')
+        # The database stores LOCAL times (from Timewarrior), not UTC times
+        # But JIRA is treating them as UTC and converting to EDT
+        # So we need to add timezone info to tell JIRA this is already local time
         
+        import time
+        from datetime import timezone
+        
+        # Parse the timestamp as a naive datetime (no timezone)
         if start_time.endswith('Z'):
-            started = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-        elif '+' in start_time or '-' in start_time.split('T')[-1]:
-            started = datetime.fromisoformat(start_time)
+            # If it has Z, remove it and parse
+            started_naive = datetime.fromisoformat(start_time.replace('Z', ''))
+        elif '+' in start_time.split('T')[-1] or '-' in start_time.split('T')[-1]:
+            # If it has timezone offset, parse and convert to naive
+            started_with_tz = datetime.fromisoformat(start_time)
+            started_naive = started_with_tz.replace(tzinfo=None)
         else:
-            # Assume UTC if no timezone info
-            started = datetime.fromisoformat(start_time + '+00:00')
+            # No timezone info - parse as is (local time)
+            started_naive = datetime.fromisoformat(start_time)
+        
+        # Create a timezone-aware datetime in local timezone
+        # For EDT, the offset is -4 hours from UTC
+        local_offset_seconds = -time.altzone if time.daylight else -time.timezone
+        local_tz = timezone(timedelta(seconds=local_offset_seconds))
+        started = started_naive.replace(tzinfo=local_tz)
+        
+        # Send the timezone-aware local time to JIRA
         
         jira.add_worklog(
             issue=ticket_id,
@@ -507,37 +524,40 @@ def batch_sync_to_jira(intervals):
     Sync multiple Timewarrior intervals to JIRA.
     Returns list of results.
     """
-    from app.models import SessionLocal, Switch
-    
     results = []
-    db = SessionLocal()
     
     for interval in intervals:
-        # Try to find a matching Switch record to get the note
-        comment = None
-        try:
-            # Parse the start time to match against Switch records
-            start_str = interval['start']
-            if 'T' in start_str:
-                # Convert ISO format to datetime for comparison
-                from datetime import timedelta
-                if start_str.endswith('Z'):
-                    start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-                else:
-                    start_dt = datetime.fromisoformat(start_str.replace('T', ' ') if '+' not in start_str and '-' not in start_str.split('T')[-1] else start_str)
-                
-                # Look for a Switch record around this time (within 1 minute)
-                # and with the matching ticket ID
-                switch = db.query(Switch).filter(
-                    Switch.to_task == interval['ticket'],
-                    Switch.timestamp >= start_dt - timedelta(minutes=1),
-                    Switch.timestamp <= start_dt + timedelta(minutes=1)
-                ).first()
-                
-                if switch and switch.note:
-                    comment = switch.note
-        except Exception as e:
-            print(f"Warning: Could not lookup note for interval: {e}")
+        # Use the note that's already included in the interval data
+        comment = interval.get('note', None)
+        
+        # If no note in interval data, try to look it up from the database
+        if not comment:
+            from app.models import SessionLocal, Switch
+            db = SessionLocal()
+            try:
+                # Parse the start time to match against Switch records
+                start_str = interval['start']
+                if 'T' in start_str:
+                    # The interval start time is in ISO format, already in local time converted to UTC naive
+                    # We need to parse it as a naive datetime to match the database
+                    from datetime import timedelta
+                    # interval['start'] is already a UTC naive datetime string from get_timewarrior_intervals
+                    start_dt = datetime.fromisoformat(start_str)
+                    
+                    # Look for a Switch record around this time (within 1 minute)
+                    # and with the matching ticket ID
+                    switch = db.query(Switch).filter(
+                        Switch.to_task == interval['ticket'],
+                        Switch.timestamp >= start_dt - timedelta(minutes=1),
+                        Switch.timestamp <= start_dt + timedelta(minutes=1)
+                    ).first()
+                    
+                    if switch and switch.note:
+                        comment = switch.note
+                    
+                    db.close()
+            except Exception as e:
+                print(f"Warning: Could not lookup note for interval: {e}")
         
         success, message = sync_interval_to_jira(
             interval['ticket'],
@@ -555,5 +575,4 @@ def batch_sync_to_jira(intervals):
             'comment': comment or 'No note'
         })
     
-    db.close()
     return results

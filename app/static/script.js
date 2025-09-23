@@ -384,6 +384,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 loadAnalytics(view);
             } else if (tab.dataset.tab === "kanban") {
                 loadKanbanBoard();
+            } else if (tab.dataset.tab === "time-editor") {
+                if (window.loadTimeEditor) {
+                    window.loadTimeEditor();
+                }
             } else if (tab.dataset.tab === "settings") {
                 loadSettings();
             }

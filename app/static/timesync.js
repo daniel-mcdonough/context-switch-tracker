@@ -398,11 +398,30 @@ async function syncTicket() {
         alert('No time entries to sync');
         return;
     }
-    
-    // Filter out entries less than 60 seconds
-    const validIntervals = currentTicket.intervals.filter(i => i.duration_seconds >= 60);
-    if (validIntervals.length === 0) {
-        alert('No valid time entries to sync (entries under 1 minute are excluded)');
+
+    // Filter out entries less than 60 seconds AND entries that already have matches in JIRA
+    const unmatchedIntervals = currentTicket.intervals.filter(interval => {
+        // Skip short entries
+        if (interval.duration_seconds < 60) {
+            return false;
+        }
+
+        // Check if this interval already has a match in JIRA
+        const matchType = findMatchingWorklog(interval, currentTicket.existing_worklogs || []);
+
+        // Only sync entries that don't have exact matches
+        // We'll still sync close matches since they might be different entries
+        return matchType !== 'exact-match';
+    });
+
+    if (unmatchedIntervals.length === 0) {
+        alert('All time entries are already synced to JIRA or are too short (under 1 minute)');
+        return;
+    }
+
+    // Show confirmation with count of entries to sync
+    const confirmMsg = `This will sync ${unmatchedIntervals.length} unmatched time entries to JIRA. Continue?`;
+    if (!confirm(confirmMsg)) {
         return;
     }
     
@@ -420,7 +439,7 @@ async function syncTicket() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ intervals: validIntervals })
+            body: JSON.stringify({ intervals: unmatchedIntervals })
         });
         
         const result = await response.json();
@@ -430,7 +449,9 @@ async function syncTicket() {
             const failCount = result.summary.failed;
             
             if (successCount > 0) {
-                statusDiv.textContent = `✓ Successfully synced ${formatHours(currentTicket.total_seconds)} to JIRA`;
+                // Calculate the total seconds that were actually synced
+                const syncedSeconds = unmatchedIntervals.reduce((sum, interval) => sum + interval.duration_seconds, 0);
+                statusDiv.textContent = `✓ Successfully synced ${formatHours(syncedSeconds)} to JIRA (${successCount} entries)`;
                 statusDiv.className = 'sync-status success';
                 button.textContent = 'Synced!';
                 button.disabled = true;

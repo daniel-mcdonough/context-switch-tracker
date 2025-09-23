@@ -6,10 +6,11 @@ from app.timew import get_current_task, get_current_summary, switch_task, stop_t
 from app.jira_client import get_assigned_tickets
 from app.activitywatch import get_activitywatch_hours
 from app.timesync import get_timewarrior_intervals, get_jira_worklogs, batch_sync_to_jira, get_timewarrior_by_ticket, get_single_ticket_data
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime, timezone
 from sqlalchemy import func, desc
 import json
 import csv
+import time
 from io import StringIO
 from flask import Response
 
@@ -72,6 +73,19 @@ def do_switch():
 
     # Log into the database
     db = SessionLocal()
+    
+    # Set end_time for the previous task (if any)
+    if from_task:
+        # Find the most recent switch to the from_task and set its end_time
+        previous_switch = db.query(Switch).filter(
+            Switch.to_task == from_task,
+            Switch.end_time.is_(None)
+        ).order_by(Switch.timestamp.desc()).first()
+        
+        if previous_switch:
+            # Store end time in UTC to match timestamp format
+            previous_switch.end_time = datetime.now(timezone.utc).replace(tzinfo=None)
+    
     # Serialize tags to JSON string for SQLite storage
     tags_json = json.dumps(tags) if tags else None
 
@@ -95,16 +109,31 @@ def do_switch():
 @app.route("/stop", methods=["POST"])
 def stop_current():
     """
-    Stop the current task and log it.
+    Stop the current task by setting its end_time. No new record is created.
     """
     from_task = stop_task()
+    
     # Log into the database
     db = SessionLocal()
-    record = Switch(from_task=from_task, to_task="", is_switch=False)
-    db.add(record)
-    db.commit()
-    db.close()
-    return jsonify({"from": from_task, "to": ""}), 200
+    
+    # Set end_time for the current task being stopped
+    if from_task:
+        # Find the most recent switch to the from_task and set its end_time
+        current_switch = db.query(Switch).filter(
+            Switch.to_task == from_task,
+            Switch.end_time.is_(None)
+        ).order_by(Switch.timestamp.desc()).first()
+        
+        if current_switch:
+            # Store end time in UTC to match timestamp format
+            current_switch.end_time = datetime.now(timezone.utc).replace(tzinfo=None)
+            db.commit()
+        
+        db.close()
+        return jsonify({"from": from_task, "to": ""}), 200
+    else:
+        db.close()
+        return jsonify({"from": None, "to": ""}), 200
 
 # --- Custom tasks and combined tasks endpoints ---
 
@@ -779,6 +808,150 @@ def get_activitywatch_hours_endpoint():
         # If ActivityWatch is not available, return empty data
         print(f"ActivityWatch error: {e}")
         return jsonify([]), 200
+
+@app.route("/switches/list", methods=["GET"])
+def list_switches():
+    """
+    List switch entries with optional date filtering.
+    Query params: start_date, end_date (YYYY-MM-DD format)
+    """
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    db = SessionLocal()
+    query = db.query(Switch)
+    
+    # Apply date filters if provided
+    if start_date:
+        try:
+            start = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(Switch.timestamp >= start)
+        except ValueError:
+            pass
+    
+    if end_date:
+        try:
+            # Add 1 day to include the entire end date
+            end = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            query = query.filter(Switch.timestamp < end)
+        except ValueError:
+            pass
+    
+    # Get switches ordered by timestamp (newest first)
+    switches = query.order_by(Switch.timestamp.desc()).limit(500).all()
+    db.close()
+    
+    # Convert to JSON-serializable format
+    result = []
+    for switch in switches:
+        tags_list = []
+        if switch.tags:
+            try:
+                tags_list = json.loads(switch.tags)
+            except json.JSONDecodeError:
+                pass
+        
+        # SQLite stores timestamps as naive (no timezone info)
+        # We need to treat them as local time
+        # The timestamp from the database is already in local time
+        local_timestamp = switch.timestamp.isoformat()
+        end_timestamp = switch.end_time.isoformat() if switch.end_time else None
+        
+        result.append({
+            'id': switch.id,
+            'timestamp': local_timestamp,
+            'end_time': end_timestamp,
+            'from_task': switch.from_task or '',
+            'to_task': switch.to_task or '',
+            'note': switch.note or '',
+            'tags': tags_list,
+            'is_switch': switch.is_switch,
+            'category': switch.category or ''
+        })
+    
+    return jsonify(result), 200
+
+@app.route("/switches/<int:switch_id>", methods=["PUT"])
+def update_switch(switch_id):
+    """
+    Update a switch entry.
+    """
+    data = request.get_json(force=True)
+    
+    db = SessionLocal()
+    switch = db.query(Switch).filter(Switch.id == switch_id).first()
+    
+    if not switch:
+        db.close()
+        return jsonify({"error": "Switch entry not found"}), 404
+    
+    # Update fields if provided
+    if 'from_task' in data:
+        switch.from_task = data['from_task'] or None
+    if 'to_task' in data:
+        switch.to_task = data['to_task'] or None
+    if 'note' in data:
+        switch.note = data['note'] or None
+    if 'tags' in data:
+        if isinstance(data['tags'], list):
+            switch.tags = json.dumps(data['tags']) if data['tags'] else None
+        else:
+            switch.tags = data['tags'] or None
+    if 'is_switch' in data:
+        switch.is_switch = bool(data['is_switch'])
+    if 'timestamp' in data:
+        try:
+            # Frontend sends UTC time with Z removed, so just parse directly
+            timestamp_str = data['timestamp']
+            if timestamp_str:
+                timestamp_str = timestamp_str.replace('Z', '')
+                switch.timestamp = datetime.fromisoformat(timestamp_str)
+        except (ValueError, AttributeError) as e:
+            print(f"Error parsing timestamp '{data.get('timestamp')}': {e}")
+            return jsonify({"error": f"Invalid timestamp format: {str(e)}"}), 400
+    if 'end_time' in data:
+        try:
+            end_time_str = data.get('end_time')
+            if end_time_str:
+                # Frontend sends UTC time with Z removed, so just parse directly
+                end_time_str = end_time_str.replace('Z', '')
+                switch.end_time = datetime.fromisoformat(end_time_str)
+            else:
+                switch.end_time = None
+        except (ValueError, AttributeError) as e:
+            print(f"Error parsing end_time '{data.get('end_time')}': {e}")
+            return jsonify({"error": f"Invalid end_time format: {str(e)}"}), 400
+    
+    try:
+        db.commit()
+        db.close()
+        return jsonify({"message": "Switch entry updated successfully", "id": switch_id}), 200
+    except Exception as e:
+        db.rollback()
+        db.close()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/switches/<int:switch_id>", methods=["DELETE"])
+def delete_switch(switch_id):
+    """
+    Delete a switch entry.
+    """
+    db = SessionLocal()
+    switch = db.query(Switch).filter(Switch.id == switch_id).first()
+    
+    if not switch:
+        db.close()
+        return jsonify({"error": "Switch entry not found"}), 404
+    
+    try:
+        db.delete(switch)
+        db.commit()
+        db.close()
+        return jsonify({"message": "Switch entry deleted successfully"}), 200
+    except Exception as e:
+        db.rollback()
+        db.close()
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/export/switches", methods=["GET"])
 def export_switches():

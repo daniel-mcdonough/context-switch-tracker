@@ -1993,4 +1993,276 @@ button[type="submit"]:active, .btn-primary:active {
     font-style: italic;
     opacity: 0.9;
 }
+
+/* Time Editor Tab Styles */
+.time-editor-container {
+    padding: var(--section-padding);
+}
+
+.editor-description {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.editor-controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.filter-controls input[type="date"] {
+    padding: var(--input-padding);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--background);
+    color: var(--text-primary);
+    font-size: var(--font-size);
+}
+
+.filter-info {
+    color: var(--text-secondary);
+    font-size: var(--font-size);
+}
+
+.entries-edit-table {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.entries-edit-table thead {
+    background: var(--background);
+    border-bottom: 2px solid var(--border);
+}
+
+.entries-edit-table th {
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: var(--font-size-small);
+}
+
+.entries-edit-table td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary);
+    font-size: var(--font-size);
+}
+
+.entries-edit-table tbody tr:hover {
+    background: var(--surface-hover);
+}
+
+.entries-edit-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.timestamp-cell {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+    white-space: nowrap;
+}
+
+.duration-cell {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+    color: var(--primary-color);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.end-time-cell {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.note-cell {
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tags-cell {
+    font-size: var(--font-size-small);
+    color: var(--text-secondary);
+}
+
+.switch-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-small);
+    font-weight: 500;
+}
+
+.switch-yes {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+}
+
+.switch-no {
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--text-muted);
+}
+
+.actions-cell {
+    white-space: nowrap;
+}
+
+.btn-edit, .btn-delete, .btn-save, .btn-cancel {
+    padding: 0.25rem 0.5rem;
+    margin-right: 0.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--background);
+    color: var(--text-primary);
+    font-size: var(--font-size-small);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-edit:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.btn-delete:hover {
+    background: var(--danger-color);
+    color: white;
+    border-color: var(--danger-color);
+}
+
+.btn-save {
+    background: var(--success-color);
+    color: white;
+    border-color: var(--success-color);
+}
+
+.btn-save:hover {
+    opacity: 0.9;
+}
+
+.btn-cancel:hover {
+    background: var(--text-muted);
+    color: white;
+    border-color: var(--text-muted);
+}
+
+/* Edit mode inputs */
+.entries-edit-table input[type="text"],
+.entries-edit-table input[type="datetime-local"],
+.entries-edit-table textarea {
+    width: 100%;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius-sm);
+    background: var(--background);
+    color: var(--text-primary);
+    font-size: var(--font-size-small);
+}
+
+.entries-edit-table textarea {
+    resize: vertical;
+    min-height: 2.5rem;
+}
+
+.entries-edit-table input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+}
+
+.editor-result {
+    padding: 0.75rem;
+    border-radius: var(--radius-sm);
+    margin-top: 1rem;
+    text-align: center;
+    display: none;
+}
+
+.editor-result.success {
+    display: block;
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+    border: 1px solid var(--success-color);
+}
+
+.editor-result.error {
+    display: block;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+    border: 1px solid var(--danger-color);
+}
+
+.editor-result.info {
+    display: block;
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+
+/* Theme-specific styles for Time Editor */
+[data-theme="win95"] .entries-edit-table {
+    border: 2px inset var(--border);
+    border-radius: 0;
+}
+
+[data-theme="win95"] .editor-controls {
+    border: 2px inset var(--border);
+    border-radius: 0;
+}
+
+[data-theme="miku"] .btn-edit:hover {
+    background: #39c5bb;
+    border-color: #39c5bb;
+}
+
+/* Responsive design for Time Editor */
+@media (max-width: 768px) {
+    .editor-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-controls input[type="date"] {
+        width: 100%;
+    }
+    
+    .entries-edit-table {
+        font-size: var(--font-size-small);
+    }
+    
+    .entries-edit-table th,
+    .entries-edit-table td {
+        padding: 0.5rem;
+    }
+    
+    .note-cell {
+        max-width: 150px;
+    }
+}
 }

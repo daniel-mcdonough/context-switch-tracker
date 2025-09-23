@@ -30,6 +30,7 @@ class Switch(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    end_time = Column(DateTime(timezone=True), nullable=True)  # When the task ended
     from_task = Column(String, nullable=True)
     to_task = Column(String, nullable=False)
     note = Column(Text, nullable=True)

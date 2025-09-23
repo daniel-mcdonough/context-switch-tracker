@@ -22,7 +22,9 @@ def get_assigned_tickets(max_results: int = 50):
     """
     j = get_jira_client()
     jql = 'assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC'
-    issues = j.search_issues(jql, maxResults=max_results)
+    # Use the new API format - specify fields to retrieve
+    # According to the migration doc, we need to explicitly request fields
+    issues = j.search_issues(jql, maxResults=max_results, fields='key,summary')
     results = [(issue.key, issue.fields.summary) for issue in issues]
     # Sort by numeric part of the ticket key, descending (highest number first)
     results.sort(key=lambda x: int(x[0].split('-', 1)[1]), reverse=True)
