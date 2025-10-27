@@ -3,6 +3,13 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentEntries = [];
     let editingRow = null;
 
+    // Escape HTML to prevent XSS
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
     // Initialize date inputs with defaults (last 7 days)
     function initializeDates() {
         const endDate = new Date();
@@ -156,20 +163,24 @@ document.addEventListener("DOMContentLoaded", () => {
     function editEntry(entryId) {
         const entry = currentEntries.find(e => e.id === entryId);
         if (!entry) return;
-        
+
         const row = document.querySelector(`tr[data-id="${entryId}"]`);
         if (!row) return;
-        
+
         // If already editing, cancel that edit
         if (editingRow) {
             cancelEdit();
         }
-        
+
         editingRow = row;
-        
+
+        // Find next entry for duration calculation
+        const entryIndex = currentEntries.findIndex(e => e.id === entryId);
+        const nextEntry = entryIndex > 0 ? currentEntries[entryIndex - 1] : null;
+
         // Parse timestamp as UTC and convert to local time for editing
         let timestamp = new Date(entry.timestamp + 'Z');
-        
+
         // Find the current duration value to preserve it during editing
         const durationCell = row.querySelector('.duration-cell');
         const currentDuration = durationCell ? durationCell.textContent : '-';
@@ -224,6 +235,76 @@ document.addEventListener("DOMContentLoaded", () => {
                 <button class="btn-cancel" onclick="window.timeEditor.cancelEdit()">Cancel</button>
             </td>
         `;
+
+        // Add event listeners to recalculate duration when timestamps change
+        const timestampInput = row.querySelector('.edit-timestamp');
+        const endTimeInput = row.querySelector('.edit-end-time');
+        const durationCellElement = row.querySelector('.duration-cell');
+
+        function recalculateDuration() {
+            const startValue = timestampInput.value;
+            const endValue = endTimeInput.value;
+
+            if (startValue && endValue) {
+                const startDate = new Date(startValue);
+                const endDate = new Date(endValue);
+                const durationMs = endDate - startDate;
+
+                if (durationMs > 0) {
+                    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+
+                    let durationStr = '';
+                    if (hours > 0) {
+                        durationStr = `${hours}h ${minutes}m ${seconds}s`;
+                    } else if (minutes > 0) {
+                        durationStr = `${minutes}m ${seconds}s`;
+                    } else {
+                        durationStr = `${seconds}s`;
+                    }
+                    durationCellElement.textContent = durationStr;
+                    durationCellElement.style.color = '';
+                } else if (durationMs < 0) {
+                    durationCellElement.textContent = 'Invalid (end before start)';
+                    durationCellElement.style.color = 'red';
+                } else {
+                    durationCellElement.textContent = '0s';
+                    durationCellElement.style.color = '';
+                }
+            } else if (startValue && nextEntry) {
+                // If no end time but there's a next entry, calculate based on next entry's timestamp
+                const startDate = new Date(startValue);
+                const nextDate = new Date(nextEntry.timestamp + 'Z');
+                const durationMs = nextDate - startDate;
+
+                if (durationMs > 0) {
+                    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+
+                    let durationStr = '';
+                    if (hours > 0) {
+                        durationStr = `${hours}h ${minutes}m ${seconds}s`;
+                    } else if (minutes > 0) {
+                        durationStr = `${minutes}m ${seconds}s`;
+                    } else {
+                        durationStr = `${seconds}s`;
+                    }
+                    durationCellElement.textContent = durationStr + ' (to next)';
+                    durationCellElement.style.color = '#666';
+                } else {
+                    durationCellElement.textContent = 'Invalid';
+                    durationCellElement.style.color = 'red';
+                }
+            } else {
+                durationCellElement.textContent = currentDuration;
+                durationCellElement.style.color = '';
+            }
+        }
+
+        timestampInput.addEventListener('input', recalculateDuration);
+        endTimeInput.addEventListener('input', recalculateDuration);
     }
 
     // Save edited entry
@@ -346,13 +427,6 @@ document.addEventListener("DOMContentLoaded", () => {
             resultDiv.textContent = '';
             resultDiv.className = 'editor-result';
         }, 5000);
-    }
-
-    // Escape HTML to prevent XSS
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text || '';
-        return div.innerHTML;
     }
 
     // Initialize on load

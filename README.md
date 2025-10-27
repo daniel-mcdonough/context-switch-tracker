@@ -8,8 +8,11 @@ A Flask-based web application that integrates with Timewarrior and JIRA to track
 - ⏱️ **Timewarrior Integration**: Automatic time tracking using Timewarrior
 - 📊 **Analytics Dashboard**: Visual metrics showing context-switch patterns
 - 🎯 **JIRA Integration**: Fetch and work with your assigned tickets
+- 🔁 **Time Sync**: Sync Timewarrior entries to JIRA worklogs with duplicate detection
 - 📝 **Custom Tasks**: Create and track custom tasks beyond JIRA
-- 🏷️ **Categorization**: Organize switches with notes and categories
+- ✏️ **Time Editor**: Edit and manage historical time entries
+- 🏷️ **Categorization**: Organize switches with notes and tags
+- 📅 **Quarter Tracking**: US business quarter countdown widget
 
 ## Screenshots
 
@@ -67,12 +70,16 @@ Create a `.env` file in the root directory with the following variables:
 JIRA_URL=https://your-instance.atlassian.net
 JIRA_USER=your-email@domain.com
 JIRA_TOKEN=your-api-token
+JIRA_DISPLAY_NAME=Your Name  # Optional: for worklog matching
 
 # Timewarrior Configuration
 TIMEWARRIOR_BIN=timew
 
 # Database Configuration
 DATABASE_URL=sqlite:///switches.db
+
+# ActivityWatch Configuration (optional)
+ACTIVITYWATCH_URL=http://localhost:5600
 ```
 
 ### JIRA Setup
@@ -104,6 +111,22 @@ To enable JIRA integration:
    - Daily/weekly/monthly switch counts
    - Context-switch patterns over time
    - Detailed switch logs with timestamps and durations
+   - ActivityWatch integration for productivity hours
+
+### Time Sync
+
+1. Navigate to the "Time Sync" tab
+2. Enter a JIRA ticket ID to load time entries
+3. View side-by-side comparison of Timewarrior vs JIRA entries
+4. Sync unmatched entries to JIRA with automatic duplicate detection
+
+### Time Editor
+
+1. Use the "Time Editor" tab to:
+   - View and edit historical time entries
+   - Update timestamps, tasks, notes, and tags
+   - Delete incorrect entries
+   - Export switch history as CSV
 
 ## Project Structure
 
@@ -114,10 +137,14 @@ context-switcher-tracker/
 │   ├── app.py              # Main Flask application
 │   ├── models.py           # SQLAlchemy database models
 │   ├── timew.py           # Timewarrior integration
+│   ├── timesync.py        # JIRA time sync functionality
 │   ├── jira_client.py     # JIRA API client
 │   ├── static/            # CSS, JavaScript, and assets
 │   │   ├── script.js      # Main UI logic
 │   │   ├── d3-metrics.js  # D3.js visualizations
+│   │   ├── time-editor.js # Time editor functionality
+│   │   ├── timesync.js    # Time sync UI
+│   │   ├── analytics.js   # Analytics dashboard
 │   │   ├── styles.css     # Application styles
 │   │   └── ...
 │   └── templates/
@@ -125,18 +152,34 @@ context-switcher-tracker/
 ├── config.py              # Configuration management
 ├── requirements.txt       # Python dependencies
 ├── .env.example          # Environment variables template
+├── CLAUDE.md             # Development documentation
 └── README.md
 ```
 
 ## API Endpoints
 
+### Task Management
 - `GET /current` - Get current Timewarrior task and summary
 - `GET /tasks` - Combined list of JIRA tickets and custom tasks
 - `POST /switch` - Switch from current task to new task
 - `POST /stop` - Stop current task
 - `POST /tasks` - Add custom task
+
+### Metrics & Analytics
 - `GET /metrics/counts` - Get switch counts by day (week/month view)
 - `GET /metrics/switches` - Get detailed switch log for current week
+- `GET /analytics/switch-leaders` - Get tasks causing most context switches
+- `GET /activitywatch/hours` - Get ActivityWatch productivity data
+
+### Time Sync
+- `GET /timesync/tickets` - Get Timewarrior entries for a specific ticket
+- `POST /timesync/sync` - Sync selected intervals to JIRA
+
+### Time Editor
+- `GET /switches/list` - List switch entries with optional date filtering
+- `PUT /switches/<id>` - Update a switch entry
+- `DELETE /switches/<id>` - Delete a switch entry
+- `GET /export/switches` - Export all switch history as CSV
 
 ## Development
 
@@ -158,8 +201,9 @@ python app/app.py
 The application uses SQLite by default. The database file (`switches.db`) will be created automatically on first run.
 
 **Tables:**
-- `switches`: Records all task switches with timestamps, notes, and categories
+- `switches`: Records all task switches with timestamps, end_times, notes, and tags
 - `custom_tasks`: User-defined tasks beyond JIRA tickets
+- `tag_presets`: Predefined tags for categorizing switches
 
 ## Contributing
 
