@@ -60,3 +60,9 @@ build/
 
 # Timewarrior
 .timewarrior/
+
+# AI Assistant Configuration Files
+CLAUDE.md
+.github/copilot-instructions.md
+.cursorrules
+.clinerules
