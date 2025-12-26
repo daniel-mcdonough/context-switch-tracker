@@ -12,118 +12,96 @@ TIMEW_BIN = Config.TIMEWARRIOR_BIN
 
 def get_timewarrior_intervals(start_date, end_date):
     """
-    Get Timewarrior intervals between start_date and end_date.
+    Get time intervals from the database between start_date and end_date.
     Returns list of intervals with JIRA ticket tags.
     """
     try:
-        # Export timewarrior data as JSON
-        # First try without date range to see if we get any data
-        cmd = [TIMEW_BIN, 'export']
-        
-        output = subprocess.check_output(cmd, text=True, stderr=subprocess.STDOUT)
-        
-        if not output.strip():
-            return []
-            
-        intervals = json.loads(output)
-        
-        # Filter for intervals with JIRA ticket tags
-        jira_intervals = []
+        from app.models import SessionLocal, Switch
+        from datetime import timezone
+
+        # JIRA ticket pattern
         jira_pattern = re.compile(r'^[A-Z]+-\d+$')
-        
-        for interval in intervals:
-            if 'tags' not in interval:
+
+        # Get local timezone
+        local_tz = datetime.now().astimezone().tzinfo
+
+        db = SessionLocal()
+
+        # Parse date range
+        if isinstance(start_date, str):
+            start = datetime.strptime(start_date, '%Y-%m-%d')
+        else:
+            start = start_date
+
+        if isinstance(end_date, str):
+            end = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+        else:
+            end = end_date + timedelta(days=1)
+
+        # Query switches with JIRA ticket format in to_task
+        switches = db.query(Switch).filter(
+            Switch.timestamp >= start,
+            Switch.timestamp < end,
+            Switch.to_task.isnot(None)
+        ).order_by(Switch.timestamp.desc()).all()
+
+        db.close()
+
+        jira_intervals = []
+
+        for switch in switches:
+            # Check if to_task matches JIRA ticket format
+            if not switch.to_task or not jira_pattern.match(switch.to_task):
                 continue
-                
-            # Check if any tag matches JIRA ticket format
-            jira_tags = [tag for tag in interval['tags'] if jira_pattern.match(tag)]
-            
-            if jira_tags:
-                # Calculate duration in seconds
-                # Timewarrior export format: 20250806T151630Z (UTC format)
-                # But it's actually local time, so we need to handle this correctly
+
+            # Database stores UTC times as naive datetimes
+            # Convert to local time for display (matching old behavior)
+            start_utc = switch.timestamp.replace(tzinfo=timezone.utc)
+            start_local = start_utc.astimezone(local_tz).replace(tzinfo=None)
+
+            if switch.end_time:
+                end_utc = switch.end_time.replace(tzinfo=timezone.utc)
+                end_local = end_utc.astimezone(local_tz).replace(tzinfo=None)
+                duration_seconds = int((switch.end_time - switch.timestamp).total_seconds())
+            else:
+                # Ongoing task - calculate duration until now
+                now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+                end_local = datetime.now().astimezone().replace(tzinfo=None)
+                duration_seconds = int((now_utc - switch.timestamp).total_seconds())
+
+            # Skip entries less than 60 seconds
+            if duration_seconds < 60:
+                continue
+
+            # Parse tags if present
+            tags = []
+            if switch.tags:
                 try:
-                    start_str = interval['start']
-                    
-                    # Timewarrior uses Z suffix but actually stores LOCAL time, not UTC
-                    # So we need to parse without timezone, then assign local timezone
-                    import zoneinfo
-                    local_tz = datetime.now().astimezone().tzinfo
-                    
-                    if start_str.endswith('Z'):
-                        # Timewarrior Z format is UTC time, convert to local timezone
-                        from datetime import timezone
-                        start_utc = datetime.strptime(start_str[:-1], '%Y%m%dT%H%M%S').replace(tzinfo=timezone.utc)
-                        start = start_utc.astimezone(local_tz)
-                    else:
-                        start = datetime.fromisoformat(start_str)
-                    
-                    if 'end' in interval:
-                        end_str = interval['end']
-                        if end_str.endswith('Z'):
-                            # Timewarrior Z format is UTC time, convert to local timezone
-                            from datetime import timezone
-                            end_utc = datetime.strptime(end_str[:-1], '%Y%m%dT%H%M%S').replace(tzinfo=timezone.utc)
-                            end = end_utc.astimezone(local_tz)
-                        else:
-                            end = datetime.fromisoformat(end_str)
-                    else:
-                        end = datetime.now().astimezone()
-                    
-                    duration_seconds = int((end - start).total_seconds())
-                    
-                    # Skip entries less than 60 seconds (likely accidental starts/stops)
-                    if duration_seconds < 60:
-                        continue
-                    
-                    interval_data = {
-                        'id': interval.get('id', 0),
-                        'start': start.replace(tzinfo=None).isoformat(),
-                        'end': end.replace(tzinfo=None).isoformat(),
-                        'ticket': jira_tags[0],  # Use first JIRA ticket tag
-                        'tags': interval['tags'],
-                        'duration_seconds': duration_seconds,
-                        'duration_formatted': format_duration(duration_seconds),
-                        'note': None  # Will be populated from Switch records
-                    }
-                    
-                    # Try to find a matching Switch record to get the note
-                    try:
-                        from app.models import SessionLocal, Switch
-                        from datetime import timedelta
-                        db = SessionLocal()
-                        
-                        # Convert start time to UTC naive datetime for database comparison
-                        # The database stores UTC times without timezone info
-                        start_utc = start.astimezone(timezone.utc).replace(tzinfo=None)
-                        
-                        # Look for a Switch record around this time (within 1 minute)
-                        switch = db.query(Switch).filter(
-                            Switch.to_task == jira_tags[0],
-                            Switch.timestamp >= start_utc - timedelta(minutes=1),
-                            Switch.timestamp <= start_utc + timedelta(minutes=1)
-                        ).first()
-                        
-                        if switch and switch.note:
-                            interval_data['note'] = switch.note
-                        
-                        db.close()
-                    except Exception as e:
-                        pass  # Silently ignore if we can't get the note
-                    
-                    jira_intervals.append(interval_data)
-                except Exception as parse_error:
-                    continue
-        
-        # Sort by start time (most recent first)
-        jira_intervals.sort(key=lambda i: i['start'], reverse=True)
+                    tags = json.loads(switch.tags)
+                except json.JSONDecodeError:
+                    tags = []
+
+            # Add the ticket itself to tags if not already present
+            if switch.to_task not in tags:
+                tags = [switch.to_task] + tags
+
+            interval_data = {
+                'id': switch.id,
+                'start': start_local.isoformat(),
+                'end': end_local.isoformat(),
+                'ticket': switch.to_task,
+                'tags': tags,
+                'duration_seconds': duration_seconds,
+                'duration_formatted': format_duration(duration_seconds),
+                'note': switch.note
+            }
+
+            jira_intervals.append(interval_data)
+
         return jira_intervals
-        
-    except subprocess.CalledProcessError as e:
-        return []
-    except json.JSONDecodeError as e:
-        return []
+
     except Exception as e:
+        print(f"Error getting intervals from database: {e}")
         return []
 
 
@@ -521,51 +499,22 @@ def sync_interval_to_jira(ticket_id, start_time, duration_seconds, comment=None)
 
 def batch_sync_to_jira(intervals):
     """
-    Sync multiple Timewarrior intervals to JIRA.
+    Sync multiple intervals to JIRA.
     Returns list of results.
     """
     results = []
-    
+
     for interval in intervals:
-        # Use the note that's already included in the interval data
+        # Note is already included in the interval data from the database
         comment = interval.get('note', None)
-        
-        # If no note in interval data, try to look it up from the database
-        if not comment:
-            from app.models import SessionLocal, Switch
-            db = SessionLocal()
-            try:
-                # Parse the start time to match against Switch records
-                start_str = interval['start']
-                if 'T' in start_str:
-                    # The interval start time is in ISO format, already in local time converted to UTC naive
-                    # We need to parse it as a naive datetime to match the database
-                    from datetime import timedelta
-                    # interval['start'] is already a UTC naive datetime string from get_timewarrior_intervals
-                    start_dt = datetime.fromisoformat(start_str)
-                    
-                    # Look for a Switch record around this time (within 1 minute)
-                    # and with the matching ticket ID
-                    switch = db.query(Switch).filter(
-                        Switch.to_task == interval['ticket'],
-                        Switch.timestamp >= start_dt - timedelta(minutes=1),
-                        Switch.timestamp <= start_dt + timedelta(minutes=1)
-                    ).first()
-                    
-                    if switch and switch.note:
-                        comment = switch.note
-                    
-                    db.close()
-            except Exception as e:
-                print(f"Warning: Could not lookup note for interval: {e}")
-        
+
         success, message = sync_interval_to_jira(
             interval['ticket'],
             interval['start'],
             interval['duration_seconds'],
             comment=comment
         )
-        
+
         results.append({
             'ticket': interval['ticket'],
             'start': interval['start'],
@@ -574,5 +523,5 @@ def batch_sync_to_jira(intervals):
             'message': message,
             'comment': comment or 'No note'
         })
-    
+
     return results
