@@ -506,15 +506,25 @@ document.addEventListener("DOMContentLoaded", () => {
                     taskCard.innerHTML = `
                         <div class="kanban-task-header">
                             <span class="kanban-task-id">${task.ticket_id}</span>
-                            <button class="kanban-task-delete" data-task-id="${task.ticket_id}" title="Delete task">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M18 6L6 18"></path>
-                                    <path d="M6 6l12 12"></path>
-                                </svg>
-                            </button>
+                            <div class="kanban-task-header-buttons">
+                                <button class="kanban-task-edit" data-task-id="${task.ticket_id}" title="Edit task">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                </button>
+                                <button class="kanban-task-delete" data-task-id="${task.ticket_id}" title="Delete task">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M18 6L6 18"></path>
+                                        <path d="M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
-                        <div class="kanban-task-title">${task.name}</div>
-                        ${task.description ? `<div class="kanban-task-description">${task.description}</div>` : ''}
+                        <div class="kanban-task-content">
+                            <div class="kanban-task-title">${escapeHtml(task.name)}</div>
+                            ${task.description ? `<div class="kanban-task-description">${escapeHtml(task.description)}</div>` : ''}
+                        </div>
                         <div class="kanban-task-actions">
                             ${status !== 'todo' ? `<button class="kanban-action-btn" data-task-id="${task.ticket_id}" data-action="${status === 'in_progress' ? 'todo' : 'in_progress'}">← ${status === 'in_progress' ? 'To Do' : 'In Progress'}</button>` : ''}
                             ${status !== 'done' ? `<button class="kanban-action-btn" data-task-id="${task.ticket_id}" data-action="${status === 'todo' ? 'in_progress' : 'done'}"> ${status === 'todo' ? 'Start' : 'Complete'} →</button>` : ''}
@@ -529,6 +539,18 @@ document.addEventListener("DOMContentLoaded", () => {
                         const taskId = e.target.dataset.taskId;
                         const newStatus = e.target.dataset.action;
                         updateTaskStatus(taskId, newStatus);
+                    });
+                });
+
+                // Add event listeners for edit buttons
+                container.querySelectorAll('.kanban-task-edit').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const taskId = e.target.closest('.kanban-task-edit').dataset.taskId;
+                        const task = tasks.find(t => t.ticket_id === taskId);
+                        if (task) {
+                            editKanbanTask(taskId, task);
+                        }
                     });
                 });
 
@@ -588,6 +610,114 @@ document.addEventListener("DOMContentLoaded", () => {
         .catch(err => {
             showKanbanMessage('Failed to delete task', 'error');
             console.error('Delete error:', err);
+        });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function editKanbanTask(taskId, task) {
+        const taskCard = document.querySelector(`.kanban-task[data-task-id="${taskId}"]`);
+        if (!taskCard) return;
+
+        const contentDiv = taskCard.querySelector('.kanban-task-content');
+        const actionsDiv = taskCard.querySelector('.kanban-task-actions');
+        const headerButtons = taskCard.querySelector('.kanban-task-header-buttons');
+
+        // Store original content
+        const originalContent = contentDiv.innerHTML;
+        const originalActions = actionsDiv.innerHTML;
+
+        // Hide header buttons during edit
+        headerButtons.style.display = 'none';
+
+        // Replace with edit form
+        contentDiv.innerHTML = `
+            <input type="text" class="kanban-edit-name" value="${escapeHtml(task.name)}" placeholder="Task name">
+            <textarea class="kanban-edit-description" placeholder="Task description (optional)">${escapeHtml(task.description || '')}</textarea>
+        `;
+
+        actionsDiv.innerHTML = `
+            <button class="kanban-save-btn">Save</button>
+            <button class="kanban-cancel-btn">Cancel</button>
+        `;
+
+        const nameInput = contentDiv.querySelector('.kanban-edit-name');
+        const descInput = contentDiv.querySelector('.kanban-edit-description');
+        const saveBtn = actionsDiv.querySelector('.kanban-save-btn');
+        const cancelBtn = actionsDiv.querySelector('.kanban-cancel-btn');
+
+        // Focus name input
+        nameInput.focus();
+        nameInput.select();
+
+        // Cancel handler
+        const cancelEdit = () => {
+            contentDiv.innerHTML = originalContent;
+            actionsDiv.innerHTML = originalActions;
+            headerButtons.style.display = 'flex';
+            // Re-attach event listeners to the restored action buttons
+            loadKanbanBoard();
+        };
+
+        cancelBtn.addEventListener('click', cancelEdit);
+
+        // Save handler
+        const saveEdit = () => {
+            const newName = nameInput.value.trim();
+            const newDescription = descInput.value.trim();
+
+            if (!newName) {
+                showKanbanMessage('Task name is required', 'error');
+                nameInput.focus();
+                return;
+            }
+
+            updateInternalTask(taskId, newName, newDescription);
+        };
+
+        saveBtn.addEventListener('click', saveEdit);
+
+        // Allow Enter to save (but not in textarea)
+        nameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEdit();
+            } else if (e.key === 'Escape') {
+                cancelEdit();
+            }
+        });
+
+        descInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                cancelEdit();
+            }
+        });
+    }
+
+    function updateInternalTask(taskId, name, description) {
+        fetch(`/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description })
+        })
+        .then(r => r.json())
+        .then(result => {
+            if (result.error) {
+                showKanbanMessage(`Error: ${result.error}`, 'error');
+            } else {
+                showKanbanMessage(`Task ${taskId} updated`, 'success');
+                loadKanbanBoard();
+                loadTasks(); // Refresh task selector
+            }
+        })
+        .catch(err => {
+            showKanbanMessage('Failed to update task', 'error');
+            console.error('Update error:', err);
         });
     }
 

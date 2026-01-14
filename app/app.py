@@ -212,6 +212,38 @@ def delete_internal_task(task_id):
 
     return jsonify({"message": f"Task {task_id} deleted successfully"}), 200
 
+@app.route("/tasks/<task_id>", methods=["PUT"])
+def update_internal_task(task_id):
+    """
+    Update an internal task's name and/or description.
+    Expects JSON {"name": "...", "description": "..."}
+    """
+    data = request.get_json(force=True)
+    name = data.get("name")
+    description = data.get("description")
+
+    if not name or not name.strip():
+        return jsonify({"error": "Task name is required"}), 400
+
+    db = SessionLocal()
+    task = db.query(CustomTask).filter(CustomTask.ticket_id == task_id).first()
+
+    if not task:
+        db.close()
+        return jsonify({"error": "Task not found"}), 404
+
+    task.name = name.strip()
+    task.description = description.strip() if description else None
+    db.commit()
+    db.close()
+
+    return jsonify({
+        "ticket_id": task_id,
+        "name": task.name,
+        "description": task.description,
+        "message": f"Task {task_id} updated successfully"
+    }), 200
+
 @app.route("/tasks/<task_id>/status", methods=["PUT"])
 def update_task_status(task_id):
     """
@@ -1087,16 +1119,16 @@ def sync_intervals():
     try:
         data = request.json
         intervals = data.get('intervals', [])
-        
+
         if not intervals:
             return jsonify({"error": "No intervals provided"}), 400
-        
+
         results = batch_sync_to_jira(intervals)
-        
+
         # Count successes and failures
         success_count = sum(1 for r in results if r['success'])
         failure_count = len(results) - success_count
-        
+
         return jsonify({
             "results": results,
             "summary": {
@@ -1105,7 +1137,79 @@ def sync_intervals():
                 "failed": failure_count
             }
         }), 200
-        
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/analytics/chaos", methods=["GET"])
+def get_chaos_metrics():
+    """
+    Get chaos metrics from the chaos-tracker database.
+    Returns daily chaos scores for visualization.
+    """
+    try:
+        from pathlib import Path
+        from sqlalchemy import create_engine, text
+
+        # Get view parameter (week or month)
+        view = request.args.get("view", "week")
+
+        # Determine limit based on view
+        if view == "month":
+            limit = 30
+        else:
+            limit = 7
+
+        # Look for chaos.db in project root or user home
+        chaos_db_path = None
+        possible_paths = [
+            Path(__file__).parent.parent / 'chaos.db',
+            Path.home() / 'chaos.db',
+            Path('../chaos-tracker/chaos.db').expanduser()
+        ]
+
+        for path in possible_paths:
+            if path.exists():
+                chaos_db_path = path
+                break
+
+        if not chaos_db_path:
+            return jsonify({"error": "Chaos database not found. Run chaos-tracker first."}), 404
+
+        # Query the chaos database
+        engine = create_engine(f'sqlite:///{chaos_db_path}')
+
+        with engine.connect() as conn:
+            # Get chaos metrics based on view
+            result = conn.execute(text(f"""
+                SELECT
+                    date,
+                    avg_chaos_score,
+                    max_chaos_score,
+                    total_branch_switches,
+                    total_app_switches,
+                    active_hours
+                FROM daily_summary
+                ORDER BY date DESC
+                LIMIT :limit
+            """), {"limit": limit})
+
+            summaries = []
+            for row in result:
+                summaries.append({
+                    'date': row[0],
+                    'avg_score': round(row[1], 1) if row[1] else 0,
+                    'max_score': round(row[2], 1) if row[2] else 0,
+                    'branches': row[3] or 0,
+                    'apps': row[4] or 0,
+                    'active_hours': round(row[5], 1) if row[5] else 0
+                })
+
+            # Reverse to get chronological order
+            summaries.reverse()
+
+            return jsonify(summaries), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

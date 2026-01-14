@@ -8,12 +8,14 @@
             fetch(`/analytics/time-consumers?view=${view}`).then(r => r.json()),
             fetch(`/analytics/switch-leaders?view=${view}`).then(r => r.json()),
             fetch(`/analytics/insights?view=${view}`).then(r => r.json()),
-            fetch(`/analytics/tags?view=${view}`).then(r => r.json())
-        ]).then(([timeConsumers, switchLeaders, insights, tagAnalytics]) => {
+            fetch(`/analytics/tags?view=${view}`).then(r => r.json()),
+            fetch(`/analytics/chaos?view=${view}`).then(r => r.json())
+        ]).then(([timeConsumers, switchLeaders, insights, tagAnalytics, chaosData]) => {
             renderTimeConsumers(timeConsumers, view);
             renderSwitchLeaders(switchLeaders, view);
             renderProductivityInsights(insights, view);
             renderTagAnalytics(tagAnalytics, view);
+            renderChaosChart(chaosData);
         }).catch(err => {
             console.error('Failed to load analytics:', err);
         });
@@ -373,6 +375,198 @@
                     </div>
                 `);
         }
+    }
+
+    function renderChaosChart(data) {
+        const chartDiv = d3.select("#chaos-chart");
+        const legendDiv = d3.select("#chaos-legend");
+
+        chartDiv.selectAll("*").remove();
+        legendDiv.selectAll("*").remove();
+
+        if (!data || data.length === 0) {
+            chartDiv.append("p").text("No chaos data available. Run chaos-tracker to collect metrics.");
+            return;
+        }
+
+        // Handle error response
+        if (data.error) {
+            chartDiv.append("p")
+                .style("color", "#64748b")
+                .style("font-style", "italic")
+                .text(data.error);
+            return;
+        }
+
+        // Chart dimensions
+        const margin = { top: 20, right: 60, bottom: 60, left: 50 };
+        const width = 800 - margin.left - margin.right;
+        const height = 300 - margin.top - margin.bottom;
+
+        const svg = chartDiv.append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom);
+
+        const g = svg.append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // Parse dates
+        data.forEach(d => {
+            d.parsedDate = new Date(d.date);
+        });
+
+        // Scales
+        const x = d3.scaleTime()
+            .domain(d3.extent(data, d => d.parsedDate))
+            .range([0, width]);
+
+        const y = d3.scaleLinear()
+            .domain([0, 100])
+            .range([height, 0]);
+
+        // Color scale for chaos levels
+        function getChaosColor(score) {
+            if (score >= 75) return "#dc2626"; // HIGH - red
+            if (score >= 50) return "#f59e0b"; // MEDIUM - orange
+            if (score >= 25) return "#eab308"; // LOW - yellow
+            return "#10b981"; // CALM - green
+        }
+
+        // Area generator for avg score
+        const area = d3.area()
+            .x(d => x(d.parsedDate))
+            .y0(height)
+            .y1(d => y(d.avg_score))
+            .curve(d3.curveMonotoneX);
+
+        // Draw filled area
+        g.append("path")
+            .datum(data)
+            .attr("fill", "url(#chaos-gradient)")
+            .attr("opacity", 0.3)
+            .attr("d", area);
+
+        // Define gradient
+        const gradient = svg.append("defs")
+            .append("linearGradient")
+            .attr("id", "chaos-gradient")
+            .attr("x1", "0%")
+            .attr("x2", "0%")
+            .attr("y1", "0%")
+            .attr("y2", "100%");
+
+        gradient.append("stop")
+            .attr("offset", "0%")
+            .attr("stop-color", "#dc2626");
+
+        gradient.append("stop")
+            .attr("offset", "100%")
+            .attr("stop-color", "#10b981");
+
+        // Line generator for avg score
+        const line = d3.line()
+            .x(d => x(d.parsedDate))
+            .y(d => y(d.avg_score))
+            .curve(d3.curveMonotoneX);
+
+        // Draw avg score line
+        g.append("path")
+            .datum(data)
+            .attr("fill", "none")
+            .attr("stroke", "#64748b")
+            .attr("stroke-width", 2)
+            .attr("d", line);
+
+        // Draw points with chaos level colors
+        g.selectAll(".chaos-dot")
+            .data(data)
+            .enter().append("circle")
+            .attr("class", "chaos-dot")
+            .attr("cx", d => x(d.parsedDate))
+            .attr("cy", d => y(d.avg_score))
+            .attr("r", 4)
+            .attr("fill", d => getChaosColor(d.avg_score))
+            .attr("stroke", "white")
+            .attr("stroke-width", 2)
+            .on("mouseover", function(event, d) {
+                const tooltip = chartDiv.append("div")
+                    .attr("class", "chaos-tooltip")
+                    .style("position", "absolute")
+                    .style("background", "rgba(0,0,0,0.8)")
+                    .style("color", "white")
+                    .style("padding", "8px")
+                    .style("border-radius", "4px")
+                    .style("font-size", "12px")
+                    .style("pointer-events", "none")
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 10) + "px");
+
+                let level = "CALM";
+                if (d.avg_score >= 75) level = "HIGH";
+                else if (d.avg_score >= 50) level = "MEDIUM";
+                else if (d.avg_score >= 25) level = "LOW";
+
+                tooltip.html(`
+                    <strong>${d.date}</strong><br/>
+                    Chaos Score: ${d.avg_score} (${level})<br/>
+                    Max: ${d.max_score}<br/>
+                    Branch switches: ${d.branches}<br/>
+                    App switches: ${d.apps}<br/>
+                    Active hours: ${d.active_hours}
+                `);
+
+                d3.select(this).attr("r", 6);
+            })
+            .on("mouseout", function() {
+                chartDiv.selectAll(".chaos-tooltip").remove();
+                d3.select(this).attr("r", 4);
+            });
+
+        // Reference lines for chaos levels
+        const levels = [
+            { y: 25, label: "LOW", color: "#eab308" },
+            { y: 50, label: "MEDIUM", color: "#f59e0b" },
+            { y: 75, label: "HIGH", color: "#dc2626" }
+        ];
+
+        levels.forEach(level => {
+            g.append("line")
+                .attr("x1", 0)
+                .attr("x2", width)
+                .attr("y1", y(level.y))
+                .attr("y2", y(level.y))
+                .attr("stroke", level.color)
+                .attr("stroke-dasharray", "3,3")
+                .attr("opacity", 0.3);
+        });
+
+        // Axes
+        g.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x).tickFormat(d3.timeFormat("%m/%d")))
+            .selectAll("text")
+            .style("text-anchor", "end")
+            .attr("dx", "-.8em")
+            .attr("dy", ".15em")
+            .attr("transform", "rotate(-45)");
+
+        g.append("g")
+            .call(d3.axisLeft(y))
+            .append("text")
+            .attr("fill", "#64748b")
+            .attr("transform", "rotate(-90)")
+            .attr("y", -40)
+            .attr("x", -height / 2)
+            .attr("text-anchor", "middle")
+            .text("Chaos Score");
+
+        // Legend
+        legendDiv.html(`
+            <span style="color: #10b981;">●</span> CALM (0-24) &nbsp;&nbsp;
+            <span style="color: #eab308;">●</span> LOW (25-49) &nbsp;&nbsp;
+            <span style="color: #f59e0b;">●</span> MEDIUM (50-74) &nbsp;&nbsp;
+            <span style="color: #dc2626;">●</span> HIGH (75-100)
+        `);
     }
 
     // Expose globally
