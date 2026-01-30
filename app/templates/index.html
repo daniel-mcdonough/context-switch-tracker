@@ -16,10 +16,12 @@
     <script defer src="/static/analytics.js"></script>
     <script defer src="/static/timesync.js"></script>
     <script defer src="/static/time-editor.js"></script>
+    <script defer src="/static/todo.js"></script>
     <script defer src="/static/script.js"></script>
 </head>
 
 <body>
+    <div class="app-layout">
     <div class="container">
         <div class="app-header">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -391,6 +393,62 @@
             </div>
         </div> <!-- end tab-content -->
     </div> <!-- end container -->
+
+    <!-- Todo Sidebar -->
+    <aside class="todo-sidebar" id="todo-sidebar">
+        <div class="todo-sidebar-header">
+            <h2>Todo List</h2>
+            <button class="todo-toggle-btn" id="toggle-sidebar" title="Collapse sidebar">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+        </div>
+
+        <div class="todo-sidebar-content">
+            <div class="todo-input-container">
+                <div class="todo-input-row">
+                    <input type="text" id="todo-input" placeholder="Add a todo..." />
+                    <button class="todo-add-btn" id="add-todo-btn">Add</button>
+                </div>
+                <select class="todo-ticket-select" id="todo-ticket-select">
+                    <option value="">No ticket</option>
+                </select>
+            </div>
+
+            <div class="todo-filters">
+                <button class="todo-filter active" data-filter="pending">Pending</button>
+                <button class="todo-filter" data-filter="completed">Done</button>
+                <button class="todo-filter" data-filter="all">All</button>
+            </div>
+
+            <ul id="todo-list" class="todo-list">
+                <li class="todo-empty">Loading...</li>
+            </ul>
+
+            <div class="todo-stats">
+                <span id="todo-count">0 pending</span>
+            </div>
+        </div>
+    </aside>
+
+    </div> <!-- end app-layout -->
+
+    <!-- Mobile FAB and overlay -->
+    <button class="todo-fab" id="todo-fab" title="Open Todo List">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 11l3 3L22 4"></path>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+        </svg>
+    </button>
+    <div class="todo-overlay" id="todo-overlay"></div>
+
+    <!-- Expand button when sidebar is collapsed -->
+    <button class="todo-expand-btn" id="todo-expand-btn" title="Open Todo List">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </button>
 </body>
 
 </html>

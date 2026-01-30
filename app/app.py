@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, render_template
 from app.models import init_db, SessionLocal, Switch
 from sqlalchemy.exc import IntegrityError
-from app.models import CustomTask, TagPreset, generate_internal_ticket_id
+from app.models import CustomTask, TagPreset, TodoItem, generate_internal_ticket_id
 from app.timew import get_current_task, get_current_summary, switch_task, stop_task
 from app.jira_client import get_assigned_tickets
 from app.activitywatch import get_activitywatch_hours
@@ -1212,6 +1212,177 @@ def get_chaos_metrics():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# Todo Sidebar Endpoints
+# =============================================================================
+
+@app.route("/todos", methods=["GET"])
+def get_todos():
+    """
+    Return todos, optionally filtered by completion status or ticket_id.
+    Query params: ?completed=true/false, ?ticket_id=PROJ-123
+    """
+    completed_filter = request.args.get('completed')
+    ticket_filter = request.args.get('ticket_id')
+
+    db = SessionLocal()
+    try:
+        query = db.query(TodoItem).order_by(TodoItem.position.asc(), TodoItem.created_at.desc())
+
+        if completed_filter is not None:
+            completed = completed_filter.lower() == 'true'
+            query = query.filter(TodoItem.completed == completed)
+
+        if ticket_filter:
+            query = query.filter(TodoItem.ticket_id == ticket_filter)
+
+        todos = query.all()
+
+        result = [{
+            'id': todo.id,
+            'content': todo.content,
+            'completed': todo.completed,
+            'priority': todo.priority,
+            'ticket_id': todo.ticket_id,
+            'created_at': todo.created_at.isoformat() if todo.created_at else None,
+            'completed_at': todo.completed_at.isoformat() if todo.completed_at else None,
+            'position': todo.position
+        } for todo in todos]
+
+        return jsonify(result), 200
+    finally:
+        db.close()
+
+
+@app.route("/todos", methods=["POST"])
+def create_todo():
+    """
+    Create a new todo item.
+    Expects JSON: {"content": "...", "priority": 0, "ticket_id": "PROJ-123"}
+    """
+    data = request.get_json(force=True)
+    content = data.get("content", "").strip()
+    priority = data.get("priority", 0)
+    ticket_id = data.get("ticket_id")
+
+    if not content:
+        return jsonify({"error": "Content is required"}), 400
+
+    db = SessionLocal()
+    try:
+        # Get max position for new item
+        max_pos = db.query(func.max(TodoItem.position)).scalar() or 0
+
+        todo = TodoItem(
+            content=content,
+            priority=priority,
+            ticket_id=ticket_id.strip() if ticket_id else None,
+            position=max_pos + 1,
+            completed=False
+        )
+        db.add(todo)
+        db.commit()
+
+        result = {
+            'id': todo.id,
+            'content': todo.content,
+            'priority': todo.priority,
+            'ticket_id': todo.ticket_id,
+            'position': todo.position
+        }
+        return jsonify(result), 201
+    finally:
+        db.close()
+
+
+@app.route("/todos/<int:todo_id>", methods=["PUT"])
+def update_todo(todo_id):
+    """
+    Update a todo item's content, priority, or ticket_id.
+    """
+    data = request.get_json(force=True)
+
+    db = SessionLocal()
+    try:
+        todo = db.query(TodoItem).filter(TodoItem.id == todo_id).first()
+
+        if not todo:
+            return jsonify({"error": "Todo not found"}), 404
+
+        if 'content' in data:
+            content = data['content'].strip()
+            if not content:
+                return jsonify({"error": "Content cannot be empty"}), 400
+            todo.content = content
+
+        if 'priority' in data:
+            todo.priority = data['priority']
+
+        if 'ticket_id' in data:
+            todo.ticket_id = data['ticket_id'].strip() if data['ticket_id'] else None
+
+        if 'position' in data:
+            todo.position = data['position']
+
+        db.commit()
+
+        return jsonify({
+            'id': todo.id,
+            'content': todo.content,
+            'priority': todo.priority,
+            'ticket_id': todo.ticket_id,
+            'position': todo.position
+        }), 200
+    finally:
+        db.close()
+
+
+@app.route("/todos/<int:todo_id>/complete", methods=["PUT"])
+def toggle_todo_complete(todo_id):
+    """
+    Toggle todo completion status.
+    """
+    db = SessionLocal()
+    try:
+        todo = db.query(TodoItem).filter(TodoItem.id == todo_id).first()
+
+        if not todo:
+            return jsonify({"error": "Todo not found"}), 404
+
+        todo.completed = not todo.completed
+        todo.completed_at = datetime.now(timezone.utc).replace(tzinfo=None) if todo.completed else None
+        db.commit()
+
+        return jsonify({
+            "id": todo_id,
+            "completed": todo.completed,
+            "completed_at": todo.completed_at.isoformat() if todo.completed_at else None
+        }), 200
+    finally:
+        db.close()
+
+
+@app.route("/todos/<int:todo_id>", methods=["DELETE"])
+def delete_todo(todo_id):
+    """
+    Delete a todo item.
+    """
+    db = SessionLocal()
+    try:
+        todo = db.query(TodoItem).filter(TodoItem.id == todo_id).first()
+
+        if not todo:
+            return jsonify({"error": "Todo not found"}), 404
+
+        db.delete(todo)
+        db.commit()
+
+        return jsonify({"message": f"Todo {todo_id} deleted"}), 200
+    finally:
+        db.close()
+
 
 if __name__ == "__main__":
     # Default host/port; override with FLASK_RUN_HOST/PORT if desired

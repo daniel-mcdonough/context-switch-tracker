@@ -94,6 +94,19 @@ class TagPreset(Base):
     is_active = Column(Boolean, nullable=False, server_default="1")
 
 
+# TodoItem model for sidebar todo list
+class TodoItem(Base):
+    __tablename__ = "todo_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    content = Column(String(500), nullable=False)
+    completed = Column(Boolean, nullable=False, server_default="0")
+    priority = Column(Integer, nullable=False, server_default="0")  # 0=normal, 1=high, 2=urgent
+    ticket_id = Column(String(50), nullable=True)  # Links to JIRA ticket or custom task
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    position = Column(Integer, nullable=False, server_default="0")
+
 
 # 4) Create the table (run once at startup)
 def init_db():
