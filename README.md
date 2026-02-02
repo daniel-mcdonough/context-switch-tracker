@@ -13,6 +13,7 @@ A Flask-based web application that integrates with Timewarrior and JIRA to track
 - ✏️ **Time Editor**: Edit and manage historical time entries
 - 🏷️ **Categorization**: Organize switches with notes and tags
 - 📅 **Quarter Tracking**: US business quarter countdown widget
+- ✅ **Todo Sidebar**: Always-visible todo list with ticket linking and CLI support
 
 ## Screenshots
 
@@ -128,6 +129,26 @@ To enable JIRA integration:
    - Delete incorrect entries
    - Export switch history as CSV
 
+### Todo Sidebar
+
+The todo sidebar is always visible on the right side of the screen:
+1. Add todos with optional ticket linking
+2. Filter by pending, completed, or all
+3. Click to edit inline, checkbox to complete
+4. Collapse/expand with the arrow button
+
+**CLI Tool** - Manage todos from the terminal:
+```bash
+python todo_cli.py add "Task description"
+python todo_cli.py add "Fix bug" --ticket PROJ-123
+python todo_cli.py add "Urgent task" -p urgent
+python todo_cli.py list
+python todo_cli.py list --ticket PROJ-123
+python todo_cli.py done 1
+python todo_cli.py edit 1 "Updated description"
+python todo_cli.py delete 1
+```
+
 ## Project Structure
 
 ```
@@ -145,11 +166,13 @@ context-switcher-tracker/
 │   │   ├── time-editor.js # Time editor functionality
 │   │   ├── timesync.js    # Time sync UI
 │   │   ├── analytics.js   # Analytics dashboard
+│   │   ├── todo.js        # Todo sidebar functionality
 │   │   ├── styles.css     # Application styles
 │   │   └── ...
 │   └── templates/
 │       └── index.html     # Main application template
 ├── config.py              # Configuration management
+├── todo_cli.py            # Todo CLI tool
 ├── requirements.txt       # Python dependencies
 ├── .env.example          # Environment variables template
 ├── CLAUDE.md             # Development documentation
@@ -181,6 +204,13 @@ context-switcher-tracker/
 - `DELETE /switches/<id>` - Delete a switch entry
 - `GET /export/switches` - Export all switch history as CSV
 
+### Todo
+- `GET /todos` - List todos (filter: `?completed=true/false`, `?ticket_id=X`)
+- `POST /todos` - Create todo `{content, priority, ticket_id}`
+- `PUT /todos/<id>` - Update todo
+- `PUT /todos/<id>/complete` - Toggle completion
+- `DELETE /todos/<id>` - Delete todo
+
 ## Development
 
 ### Running in Development Mode
@@ -204,6 +234,7 @@ The application uses SQLite by default. The database file (`switches.db`) will b
 - `switches`: Records all task switches with timestamps, end_times, notes, and tags
 - `custom_tasks`: User-defined tasks beyond JIRA tickets
 - `tag_presets`: Predefined tags for categorizing switches
+- `todo_items`: Todo list items with ticket linking and priority
 
 ## Contributing
 
