@@ -1,0 +1,390 @@
+#!/usr/bin/env python3
+"""
+TUI CLI for task tracking - replacement for Timewarrior integration.
+
+Usage:
+    track switch              # Interactive: fuzzy search tickets, add note
+    track stop                # Stop current task
+    track status              # Show current task and elapsed time
+    track summary             # Show today's time by task
+    track log                 # Show recent switches
+"""
+
+import sys
+import argparse
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+from app.models import SessionLocal, Switch, CustomTask, init_db
+from app.jira_client import get_assigned_tickets
+from sqlalchemy import func
+import json
+
+try:
+    from InquirerPy import inquirer
+    from InquirerPy.base.control import Choice
+    HAS_INQUIRER = True
+except ImportError:
+    HAS_INQUIRER = False
+
+
+def get_current_task():
+    """Get current task from database."""
+    db = SessionLocal()
+    try:
+        latest = db.query(Switch).filter(
+            Switch.end_time.is_(None),
+            Switch.to_task.isnot(None),
+            Switch.to_task != ""
+        ).order_by(Switch.timestamp.desc()).first()
+        if latest:
+            return latest.to_task, latest.timestamp
+        return None, None
+    finally:
+        db.close()
+
+
+def format_duration(start_time, end_time=None):
+    """Format duration between two times."""
+    if not start_time:
+        return "0m"
+    if end_time is None:
+        end_time = datetime.now(timezone.utc).replace(tzinfo=None)
+    # Handle timezone-aware timestamps
+    if start_time.tzinfo:
+        start_time = start_time.replace(tzinfo=None)
+    if end_time.tzinfo:
+        end_time = end_time.replace(tzinfo=None)
+    delta = end_time - start_time
+    total_seconds = int(delta.total_seconds())
+    if total_seconds < 0:
+        return "0m"
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, _ = divmod(remainder, 60)
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m"
+
+
+def fetch_all_tickets():
+    """Fetch all available tickets (JIRA + internal)."""
+    tickets = []
+
+    # Get JIRA tickets
+    try:
+        jira_tickets = get_assigned_tickets()
+        for key, summary in jira_tickets:
+            tickets.append({"key": key, "summary": summary, "source": "jira"})
+    except Exception as e:
+        print(f"Warning: Could not fetch JIRA tickets: {e}", file=sys.stderr)
+
+    # Get internal tasks
+    db = SessionLocal()
+    try:
+        internal = db.query(CustomTask).filter(
+            CustomTask.status.in_(["todo", "in_progress"])
+        ).all()
+        for task in internal:
+            tickets.append({
+                "key": task.ticket_id,
+                "summary": task.name,
+                "source": "internal"
+            })
+    finally:
+        db.close()
+
+    return tickets
+
+
+def do_switch(from_task, to_task, note=None, tags=None, is_switch=True):
+    """Record a task switch in the database."""
+    db = SessionLocal()
+    try:
+        # Set end_time on previous task
+        if from_task:
+            previous = db.query(Switch).filter(
+                Switch.to_task == from_task,
+                Switch.end_time.is_(None)
+            ).order_by(Switch.timestamp.desc()).first()
+            if previous:
+                previous.end_time = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        # Create new switch record
+        tags_json = json.dumps(tags) if tags else None
+        record = Switch(
+            from_task=from_task,
+            to_task=to_task,
+            note=note,
+            tags=tags_json,
+            is_switch=is_switch
+        )
+        db.add(record)
+        db.commit()
+        return True
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return False
+    finally:
+        db.close()
+
+
+def do_stop(from_task):
+    """Stop the current task."""
+    if not from_task:
+        return False
+
+    db = SessionLocal()
+    try:
+        current = db.query(Switch).filter(
+            Switch.to_task == from_task,
+            Switch.end_time.is_(None)
+        ).order_by(Switch.timestamp.desc()).first()
+        if current:
+            current.end_time = datetime.now(timezone.utc).replace(tzinfo=None)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
+def cmd_switch():
+    """Interactive task switch with fuzzy search."""
+    if not HAS_INQUIRER:
+        print("Error: InquirerPy not installed. Run: pip install InquirerPy")
+        return 1
+
+    # Get current task
+    current_task, _ = get_current_task()
+
+    # Fetch tickets
+    print("Loading tickets...", end="\r")
+    tickets = fetch_all_tickets()
+    print("                  ", end="\r")  # Clear loading message
+
+    if not tickets:
+        print("No tickets available")
+        return 1
+
+    # Build choices
+    choices = []
+    for t in tickets:
+        label = f"{t['key']}: {t['summary'][:50]}{'...' if len(t['summary']) > 50 else ''}"
+        choices.append(Choice(value=t['key'], name=label))
+
+    # Fuzzy search prompt
+    try:
+        selected = inquirer.fuzzy(
+            message="Select ticket:",
+            choices=choices,
+            max_height="70%",
+        ).execute()
+    except KeyboardInterrupt:
+        print("\nCancelled")
+        return 0
+
+    if not selected:
+        print("No ticket selected")
+        return 1
+
+    # Note prompt
+    try:
+        note = inquirer.text(
+            message="Note (optional):",
+        ).execute()
+    except KeyboardInterrupt:
+        note = ""
+
+    # Perform the switch
+    if do_switch(current_task, selected, note.strip() if note else None):
+        if current_task:
+            print(f"Switched to {selected} (was: {current_task})")
+        else:
+            print(f"Started {selected}")
+        return 0
+    else:
+        print("Failed to switch task")
+        return 1
+
+
+def cmd_stop():
+    """Stop the current task."""
+    current_task, start_time = get_current_task()
+
+    if not current_task:
+        print("No task running")
+        return 0
+
+    duration = format_duration(start_time)
+    if do_stop(current_task):
+        print(f"Stopped {current_task} ({duration})")
+        return 0
+    else:
+        print("Failed to stop task")
+        return 1
+
+
+def cmd_status():
+    """Show current task and elapsed time."""
+    current_task, start_time = get_current_task()
+
+    if not current_task:
+        print("Idle - no task running")
+        return 0
+
+    duration = format_duration(start_time)
+    print(f"Working on: {current_task}")
+    print(f"Duration:   {duration}")
+    return 0
+
+
+def cmd_summary():
+    """Show today's time by task."""
+    db = SessionLocal()
+    try:
+        # Get today's start (midnight local time, but we store UTC)
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Get all switches from today
+        switches = db.query(Switch).filter(
+            Switch.timestamp >= today,
+            Switch.to_task.isnot(None),
+            Switch.to_task != ""
+        ).order_by(Switch.timestamp.asc()).all()
+
+        if not switches:
+            print("No time tracked today")
+            return 0
+
+        # Calculate time per task
+        task_times = {}
+        for switch in switches:
+            task = switch.to_task
+            start = switch.timestamp
+            end = switch.end_time or datetime.now(timezone.utc).replace(tzinfo=None)
+
+            # Handle timezone
+            if start.tzinfo:
+                start = start.replace(tzinfo=None)
+            if end.tzinfo:
+                end = end.replace(tzinfo=None)
+
+            duration = (end - start).total_seconds()
+            if duration > 0:
+                task_times[task] = task_times.get(task, 0) + duration
+
+        # Sort by time descending
+        sorted_tasks = sorted(task_times.items(), key=lambda x: x[1], reverse=True)
+
+        print("Today's time by task:")
+        print("-" * 40)
+        total = 0
+        for task, seconds in sorted_tasks:
+            hours, remainder = divmod(int(seconds), 3600)
+            minutes, _ = divmod(remainder, 60)
+            if hours > 0:
+                time_str = f"{hours}h {minutes}m"
+            else:
+                time_str = f"{minutes}m"
+            print(f"{time_str:>8}  {task}")
+            total += seconds
+
+        print("-" * 40)
+        hours, remainder = divmod(int(total), 3600)
+        minutes, _ = divmod(remainder, 60)
+        print(f"{hours}h {minutes}m  TOTAL")
+
+        return 0
+    finally:
+        db.close()
+
+
+def cmd_log(limit=10):
+    """Show recent switches."""
+    db = SessionLocal()
+    try:
+        switches = db.query(Switch).filter(
+            Switch.to_task.isnot(None),
+            Switch.to_task != ""
+        ).order_by(Switch.timestamp.desc()).limit(limit).all()
+
+        if not switches:
+            print("No switches recorded")
+            return 0
+
+        print(f"Recent switches (last {limit}):")
+        print("-" * 60)
+
+        for switch in reversed(switches):
+            ts = switch.timestamp
+            if ts.tzinfo:
+                ts = ts.replace(tzinfo=None)
+            time_str = ts.strftime("%m/%d %H:%M")
+            duration = format_duration(switch.timestamp, switch.end_time)
+            status = "" if switch.end_time else " (active)"
+
+            line = f"{time_str}  {duration:>8}  {switch.to_task}{status}"
+            if switch.note:
+                line += f"  - {switch.note[:30]}{'...' if len(switch.note) > 30 else ''}"
+            print(line)
+
+        return 0
+    finally:
+        db.close()
+
+
+def main():
+    init_db()
+
+    parser = argparse.ArgumentParser(
+        description="Task tracking CLI",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Commands:
+  switch    Interactive task switch with fuzzy search
+  stop      Stop current task
+  status    Show current task and elapsed time
+  summary   Show today's time by task
+  log       Show recent switches
+        """
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    # Switch command
+    subparsers.add_parser("switch", aliases=["sw"], help="Switch to a new task")
+
+    # Stop command
+    subparsers.add_parser("stop", help="Stop current task")
+
+    # Status command
+    subparsers.add_parser("status", aliases=["st"], help="Show current task")
+
+    # Summary command
+    subparsers.add_parser("summary", aliases=["sum"], help="Show today's time")
+
+    # Log command
+    log_parser = subparsers.add_parser("log", help="Show recent switches")
+    log_parser.add_argument("-n", type=int, default=10, help="Number of entries")
+
+    args = parser.parse_args()
+
+    if args.command in ("switch", "sw"):
+        return cmd_switch()
+    elif args.command == "stop":
+        return cmd_stop()
+    elif args.command in ("status", "st"):
+        return cmd_status()
+    elif args.command in ("summary", "sum"):
+        return cmd_summary()
+    elif args.command == "log":
+        return cmd_log(args.n)
+    else:
+        # Default to status if no command
+        return cmd_status()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

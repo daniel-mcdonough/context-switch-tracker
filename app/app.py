@@ -2,7 +2,6 @@ from flask import Flask, jsonify, request, render_template
 from app.models import init_db, SessionLocal, Switch
 from sqlalchemy.exc import IntegrityError
 from app.models import CustomTask, TagPreset, TodoItem, generate_internal_ticket_id
-from app.timew import get_current_task, get_current_summary, switch_task, stop_task
 from app.jira_client import get_assigned_tickets
 from app.activitywatch import get_activitywatch_hours
 from app.timesync import get_timewarrior_intervals, get_jira_worklogs, batch_sync_to_jira, get_timewarrior_by_ticket, get_single_ticket_data
@@ -19,6 +18,39 @@ init_db()
 
 app = Flask(__name__)
 
+
+def get_current_task_from_db():
+    """Get current task from database (most recent switch with no end_time)."""
+    db = SessionLocal()
+    try:
+        latest = db.query(Switch).filter(
+            Switch.end_time.is_(None),
+            Switch.to_task.isnot(None),
+            Switch.to_task != ""
+        ).order_by(Switch.timestamp.desc()).first()
+        if latest:
+            return latest.to_task, latest.timestamp
+        return None, None
+    finally:
+        db.close()
+
+
+def format_duration(start_time):
+    """Format duration from start time to now."""
+    if not start_time:
+        return ""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    # Handle timezone-aware timestamps
+    if start_time.tzinfo:
+        start_time = start_time.replace(tzinfo=None)
+    delta = now - start_time
+    hours, remainder = divmod(int(delta.total_seconds()), 3600)
+    minutes, _ = divmod(remainder, 60)
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m"
+
+
 @app.route("/", methods=["GET"])
 def index():
     """
@@ -30,11 +62,15 @@ def index():
 @app.route("/current", methods=["GET"])
 def current():
     """
-    Return the currently active Timewarrior task and its summary.
+    Return the currently active task from database.
     """
-    current_tag = get_current_task()
-    summary = get_current_summary()
-    return jsonify({"current": current_tag, "summary": summary}), 200
+    current_task, start_time = get_current_task_from_db()
+    if current_task:
+        duration = format_duration(start_time)
+        summary = f"Working on {current_task} ({duration})" if duration else f"Working on {current_task}"
+    else:
+        summary = "Idle"
+    return jsonify({"current": current_task, "summary": summary}), 200
 
 @app.route("/tickets", methods=["GET"])
 def tickets():
@@ -68,12 +104,12 @@ def do_switch():
     if tags and not isinstance(tags, list):
         return jsonify({"error": "Tags must be an array"}), 400
 
-    # Perform the Timewarrior switch
-    from_task, new_task = switch_task(to_task)
+    # Get current task from database
+    from_task, _ = get_current_task_from_db()
 
     # Log into the database
     db = SessionLocal()
-    
+
     # Set end_time for the previous task (if any)
     if from_task:
         # Find the most recent switch to the from_task and set its end_time
@@ -81,17 +117,17 @@ def do_switch():
             Switch.to_task == from_task,
             Switch.end_time.is_(None)
         ).order_by(Switch.timestamp.desc()).first()
-        
+
         if previous_switch:
             # Store end time in UTC to match timestamp format
             previous_switch.end_time = datetime.now(timezone.utc).replace(tzinfo=None)
-    
+
     # Serialize tags to JSON string for SQLite storage
     tags_json = json.dumps(tags) if tags else None
 
     record = Switch(
         from_task=from_task,
-        to_task=new_task,
+        to_task=to_task,
         note=note,
         category=None,  # No longer used, kept for backward compatibility
         tags=tags_json,
@@ -102,7 +138,7 @@ def do_switch():
     db.close()
 
     return jsonify({"from": from_task,
-        "to": new_task,
+        "to": to_task,
         "note": note,
         "tags": tags}), 200
 
@@ -111,29 +147,24 @@ def stop_current():
     """
     Stop the current task by setting its end_time. No new record is created.
     """
-    from_task = stop_task()
-    
-    # Log into the database
-    db = SessionLocal()
-    
-    # Set end_time for the current task being stopped
-    if from_task:
-        # Find the most recent switch to the from_task and set its end_time
-        current_switch = db.query(Switch).filter(
-            Switch.to_task == from_task,
-            Switch.end_time.is_(None)
-        ).order_by(Switch.timestamp.desc()).first()
-        
-        if current_switch:
-            # Store end time in UTC to match timestamp format
-            current_switch.end_time = datetime.now(timezone.utc).replace(tzinfo=None)
-            db.commit()
-        
-        db.close()
-        return jsonify({"from": from_task, "to": ""}), 200
-    else:
-        db.close()
+    from_task, _ = get_current_task_from_db()
+
+    if not from_task:
         return jsonify({"from": None, "to": ""}), 200
+
+    # Set end_time for the current task being stopped
+    db = SessionLocal()
+    current_switch = db.query(Switch).filter(
+        Switch.to_task == from_task,
+        Switch.end_time.is_(None)
+    ).order_by(Switch.timestamp.desc()).first()
+
+    if current_switch:
+        current_switch.end_time = datetime.now(timezone.utc).replace(tzinfo=None)
+        db.commit()
+
+    db.close()
+    return jsonify({"from": from_task, "to": ""}), 200
 
 # --- Custom tasks and combined tasks endpoints ---
 
