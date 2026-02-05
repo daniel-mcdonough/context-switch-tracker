@@ -59,18 +59,108 @@ def index():
     from config import Config
     return render_template("index.html", jira_url=Config.JIRA_URL or '')
 
+def get_ticket_summaries():
+    """Build a lookup dictionary of ticket ID -> summary."""
+    summaries = {}
+
+    # Get JIRA tickets
+    try:
+        jira_tickets = get_assigned_tickets()
+        for key, summary in jira_tickets:
+            summaries[key] = summary
+    except Exception:
+        pass
+
+    # Get internal tasks
+    db = SessionLocal()
+    try:
+        internal = db.query(CustomTask).all()
+        for task in internal:
+            summaries[task.ticket_id] = task.name
+    finally:
+        db.close()
+
+    return summaries
+
+
 @app.route("/current", methods=["GET"])
 def current():
     """
-    Return the currently active task from database.
+    Return the currently active task and today's work entries.
     """
     current_task, start_time = get_current_task_from_db()
+
+    # Get ticket summaries
+    summaries = get_ticket_summaries()
+
+    # Get today's entries
+    db = SessionLocal()
+    try:
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        switches = db.query(Switch).filter(
+            Switch.timestamp >= today,
+            Switch.to_task.isnot(None),
+            Switch.to_task != ""
+        ).order_by(Switch.timestamp.asc()).all()
+
+        entries = []
+        total_seconds = 0
+        for switch in switches:
+            ts = switch.timestamp
+            if ts.tzinfo:
+                ts = ts.replace(tzinfo=None)
+
+            if switch.end_time:
+                end = switch.end_time
+                if end.tzinfo:
+                    end = end.replace(tzinfo=None)
+                end_str = end.strftime("%H:%M")
+                seconds = (end - ts).total_seconds()
+            else:
+                end_str = "now"
+                seconds = (datetime.now() - ts).total_seconds()
+
+            if seconds > 0:
+                total_seconds += seconds
+
+            hours, remainder = divmod(int(seconds), 3600)
+            minutes, _ = divmod(remainder, 60)
+            duration = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
+
+            task_id = switch.to_task
+            task_summary = summaries.get(task_id, "")
+            if task_summary and len(task_summary) > 35:
+                task_summary = task_summary[:35] + "..."
+
+            entries.append({
+                "task": task_id,
+                "summary": task_summary,
+                "start": ts.strftime("%H:%M"),
+                "end": end_str,
+                "duration": duration,
+                "active": switch.end_time is None
+            })
+
+        # Calculate total
+        hours, remainder = divmod(int(total_seconds), 3600)
+        minutes, _ = divmod(remainder, 60)
+        total_duration = f"{hours}h {minutes}m"
+
+    finally:
+        db.close()
+
     if current_task:
         duration = format_duration(start_time)
         summary = f"Working on {current_task} ({duration})" if duration else f"Working on {current_task}"
     else:
         summary = "Idle"
-    return jsonify({"current": current_task, "summary": summary}), 200
+
+    return jsonify({
+        "current": current_task,
+        "summary": summary,
+        "today": entries,
+        "total": total_duration
+    }), 200
 
 @app.route("/tickets", methods=["GET"])
 def tickets():

@@ -227,18 +227,92 @@ def cmd_stop():
         return 1
 
 
+def get_ticket_summaries():
+    """Build a lookup dictionary of ticket ID -> summary."""
+    summaries = {}
+
+    # Get JIRA tickets
+    try:
+        jira_tickets = get_assigned_tickets()
+        for key, summary in jira_tickets:
+            summaries[key] = summary
+    except Exception:
+        pass
+
+    # Get internal tasks
+    db = SessionLocal()
+    try:
+        internal = db.query(CustomTask).all()
+        for task in internal:
+            summaries[task.ticket_id] = task.name
+    finally:
+        db.close()
+
+    return summaries
+
+
 def cmd_status():
-    """Show current task and elapsed time."""
-    current_task, start_time = get_current_task()
+    """Show current task and today's work entries."""
+    db = SessionLocal()
+    try:
+        # Get today's start
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-    if not current_task:
-        print("Idle - no task running")
+        # Get all switches from today
+        switches = db.query(Switch).filter(
+            Switch.timestamp >= today,
+            Switch.to_task.isnot(None),
+            Switch.to_task != ""
+        ).order_by(Switch.timestamp.asc()).all()
+
+        if not switches:
+            print("No time tracked today")
+            return 0
+
+        # Get ticket summaries for display
+        summaries = get_ticket_summaries()
+
+        # Show today's entries
+        print("Today's work:")
+        print("-" * 80)
+        total_seconds = 0
+
+        for switch in switches:
+            ts = switch.timestamp
+            if ts.tzinfo:
+                ts = ts.replace(tzinfo=None)
+            start_str = ts.strftime("%H:%M")
+
+            if switch.end_time:
+                end = switch.end_time
+                if end.tzinfo:
+                    end = end.replace(tzinfo=None)
+                end_str = end.strftime("%H:%M")
+                duration = format_duration(switch.timestamp, switch.end_time)
+                seconds = (end - ts).total_seconds()
+            else:
+                end_str = "now  "
+                duration = format_duration(switch.timestamp)
+                seconds = (datetime.now() - ts).total_seconds()
+
+            if seconds > 0:
+                total_seconds += seconds
+
+            active = " *" if not switch.end_time else ""
+            task_id = switch.to_task
+            summary = summaries.get(task_id, "")
+            if summary:
+                summary = summary[:30] + "..." if len(summary) > 30 else summary
+            print(f"  {start_str} - {end_str}  {duration:>7}  {task_id:<12}  {summary}{active}")
+
+        print("-" * 80)
+        hours, remainder = divmod(int(total_seconds), 3600)
+        minutes, _ = divmod(remainder, 60)
+        print(f"  Total: {hours}h {minutes}m")
+
         return 0
-
-    duration = format_duration(start_time)
-    print(f"Working on: {current_task}")
-    print(f"Duration:   {duration}")
-    return 0
+    finally:
+        db.close()
 
 
 def cmd_summary():
@@ -258,6 +332,9 @@ def cmd_summary():
         if not switches:
             print("No time tracked today")
             return 0
+
+        # Get ticket summaries for display
+        summaries = get_ticket_summaries()
 
         # Calculate time per task
         task_times = {}
@@ -280,7 +357,7 @@ def cmd_summary():
         sorted_tasks = sorted(task_times.items(), key=lambda x: x[1], reverse=True)
 
         print("Today's time by task:")
-        print("-" * 40)
+        print("-" * 70)
         total = 0
         for task, seconds in sorted_tasks:
             hours, remainder = divmod(int(seconds), 3600)
@@ -289,10 +366,13 @@ def cmd_summary():
                 time_str = f"{hours}h {minutes}m"
             else:
                 time_str = f"{minutes}m"
-            print(f"{time_str:>8}  {task}")
+            summary = summaries.get(task, "")
+            if summary:
+                summary = summary[:35] + "..." if len(summary) > 35 else summary
+            print(f"{time_str:>8}  {task:<12}  {summary}")
             total += seconds
 
-        print("-" * 40)
+        print("-" * 70)
         hours, remainder = divmod(int(total), 3600)
         minutes, _ = divmod(remainder, 60)
         print(f"{hours}h {minutes}m  TOTAL")

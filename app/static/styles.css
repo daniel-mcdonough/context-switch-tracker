@@ -223,7 +223,71 @@ body {
     text-transform: none;
     letter-spacing: normal;
     color: var(--text-primary);
-    margin-bottom: 2px;
+    margin-bottom: 6px;
+}
+
+#today-entries {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-mono);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.today-entry {
+    display: flex;
+    gap: 8px;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.today-entry:last-child {
+    border-bottom: none;
+}
+
+.today-entry.active {
+    background: rgba(16, 185, 129, 0.1);
+    font-weight: 600;
+}
+
+.today-entry-time {
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.today-entry-duration {
+    color: var(--text-secondary);
+    min-width: 50px;
+    text-align: right;
+}
+
+.today-entry-task {
+    min-width: 90px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.today-entry-summary {
+    flex: 1;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.today-total {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+    font-weight: 600;
+    font-size: var(--font-size-small);
+}
+
+.today-empty {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 8px 0;
 }
 
 #current-task {

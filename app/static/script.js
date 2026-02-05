@@ -131,7 +131,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     let monthView = true; // Default to month view
-    const currentEl = document.getElementById("current-task");
+    const todayEntriesEl = document.getElementById("today-entries");
+    const todayTotalEl = document.getElementById("today-total");
     const ticketSel = document.getElementById("ticket-select");
     const noteInput = document.getElementById("note");
     const isSwitchCheckbox = document.getElementById("is-switch");
@@ -240,13 +241,39 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Helper to fetch and display the current Timewarrior summary
+    // Helper to fetch and display today's work entries
     function fetchCurrent() {
         fetch("/current")
             .then(r => r.json())
             .then(data => {
-                currentEl.textContent = data.summary || "idle";
+                // Render today's entries
+                if (!data.today || data.today.length === 0) {
+                    todayEntriesEl.innerHTML = '<div class="today-empty">No time tracked today</div>';
+                    todayTotalEl.textContent = '';
+                    return;
+                }
+
+                let html = '';
+                data.today.forEach(entry => {
+                    const activeClass = entry.active ? ' active' : '';
+                    const summaryHtml = entry.summary ? `<span class="today-entry-summary">${escapeHtml(entry.summary)}</span>` : '';
+                    html += `<div class="today-entry${activeClass}">
+                        <span class="today-entry-time">${entry.start} - ${entry.end}</span>
+                        <span class="today-entry-duration">${entry.duration}</span>
+                        <span class="today-entry-task">${escapeHtml(entry.task)}</span>
+                        ${summaryHtml}
+                    </div>`;
+                });
+                todayEntriesEl.innerHTML = html;
+                todayTotalEl.textContent = `Total: ${data.total}`;
             });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     // Fetch and display current task
