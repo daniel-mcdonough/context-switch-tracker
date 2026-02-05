@@ -94,6 +94,28 @@ todo list
 todo done 1
 ```
 
+### Adding CLI Tools to PATH
+
+The CLI tools require the project's virtualenv. Add these functions to your `~/.zshrc` or `~/.bashrc`:
+
+```bash
+# Replace /path/to with your actual project path
+track() {
+    /path/to/context-switcher-tracker/virtualenv/bin/python \
+        /path/to/context-switcher-tracker/track "$@"
+}
+
+todo() {
+    /path/to/context-switcher-tracker/virtualenv/bin/python \
+        /path/to/context-switcher-tracker/todo_cli.py "$@"
+}
+```
+
+Then reload your shell:
+```bash
+source ~/.zshrc
+```
+
 ### Web Interface
 
 - **Switcher tab**: Switch tasks, add notes/tags, create internal tasks
